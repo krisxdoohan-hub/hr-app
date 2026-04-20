@@ -62,11 +62,11 @@
                         </div>
                     </div>
 
-                    <!-- 假別額度 (補回全部歸零按鈕) -->
+                    <!-- 假別額度 -->
                     <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
                         <div class="bg-slate-50 px-5 py-3 border-b flex justify-between items-center">
                             <h2 class="font-bold text-gray-800 text-sm flex items-center"><i class="fa-solid fa-mug-hot text-amber-500 mr-2"></i>年度假別管控</h2>
-                            <!-- 修復：全部歸零按鈕回歸 -->
+                            <!-- 全部歸零按鈕 -->
                             <button @click="resetHistoricalLeave" class="text-[10px] font-bold text-amber-600 bg-white border border-amber-200 px-2 py-1 rounded shadow-sm hover:bg-amber-50 active:scale-95 transition-all">
                                 <i class="fa-solid fa-rotate-right mr-1"></i>全部歸零
                             </button>
@@ -83,7 +83,7 @@
                                 </div>
                             </div>
                         </div>
-                        <!-- 修復：到職日移到底部獨立顯示，避免擁擠 -->
+                        <!-- 到職日移到底部獨立顯示 -->
                         <div class="px-5 py-3 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between">
                             <span class="text-[10px] text-gray-500 font-bold">到職日設定 (計算特休用)：</span>
                             <input type="date" v-model="employmentStartDate" class="text-[10px] border border-gray-200 bg-white px-2 py-1 rounded font-bold text-indigo-700 outline-none">
@@ -149,7 +149,7 @@
                         </form>
                     </div>
                     
-                    <div class="text-center py-4 text-[10px] text-gray-300 font-bold uppercase tracking-widest">v6.2 終極完整版</div>
+                    <div class="text-center py-4 text-[10px] text-gray-300 font-bold uppercase tracking-widest">v6.3 終極修復版</div>
                 </div>
 
                 <!-- ================= 第二頁：報表區 ================= -->
@@ -239,10 +239,10 @@
                         </div>
                     </div>
 
-                    <!-- 資料存取與手動備份區塊 -->
+                    <!-- 資料存取與手動備份區塊 (已升級為 Web Share API) -->
                     <div class="flex gap-4 mt-6">
                         <button @click="exportData" class="flex-1 bg-white border border-slate-200 py-3 rounded-xl font-bold text-xs text-slate-600 shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-download text-indigo-500"></i>匯出備份 (JSON)
+                            <i class="fa-solid fa-share-nodes text-indigo-500"></i>匯出/分享備份
                         </button>
                         <div class="flex-1 relative">
                             <input type="file" @change="importData" class="absolute inset-0 opacity-0 cursor-pointer z-10" accept=".json">
@@ -492,8 +492,8 @@
                 });
                 watch(currentPage, (p) => { if (p === 'report') unreadCount.value = 0; });
 
-                // --- JSON 資料備份與還原 ---
-                const exportData = () => {
+                // --- 【修復升級】: 支援手機原生的 Web Share API 備份機制 ---
+                const exportData = async () => {
                     const dataToSave = {
                         monthlySalary: monthlySalary.value,
                         dependentsCount: dependentsCount.value,
@@ -501,15 +501,35 @@
                         historicalLeave: historicalLeave.value,
                         records: records.value
                     };
-                    const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: "application/json" });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `HR紀錄_${new Date().toISOString().split('T')[0]}.json`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
+                    const jsonString = JSON.stringify(dataToSave, null, 2);
+                    const fileName = `HR紀錄_${new Date().toISOString().split('T')[0]}.json`;
+
+                    // 檢查手機環境是否支援原生檔案分享 (繞過 WebView 的下載限制)
+                    if (navigator.canShare && navigator.canShare({ files: [new File([''], fileName, {type: 'application/json'})] })) {
+                        try {
+                            const file = new File([jsonString], fileName, { type: 'application/json' });
+                            await navigator.share({
+                                title: 'HR出勤紀錄備份',
+                                text: '這是您的 HR 出勤與薪資設定紀錄備份檔案。',
+                                files: [file]
+                            });
+                            // 分享成功後不強制跳提示，因為系統原生畫面已有回饋
+                        } catch (error) {
+                            console.log('使用者取消分享或分享失敗', error);
+                        }
+                    } else {
+                        // 退回傳統網頁下載模式 (適用於電腦端或不支援的瀏覽器)
+                        const blob = new Blob([jsonString], { type: "application/json" });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = fileName;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        showAlert('匯出成功', `檔案已經嘗試下載至您的設備。`);
+                    }
                 };
 
                 const importData = (event) => {
