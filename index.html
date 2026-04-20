@@ -25,6 +25,9 @@
                 <div class="flex items-center gap-2">
                     <i class="fa-solid fa-calculator text-xl text-indigo-200"></i>
                     <span class="font-bold text-lg">HR出勤紀錄</span>
+                    <span v-if="isOfflineReady" class="bg-emerald-500 text-[10px] px-2 py-0.5 rounded-full animate-pulse flex items-center shadow-sm ml-1">
+                        <i class="fa-solid fa-cloud-arrow-down mr-1"></i>離線就緒
+                    </span>
                 </div>
                 <div class="flex items-center space-x-2">
                     <button @click="currentPage = 'input'" :class="currentPage === 'input' ? 'bg-indigo-900 ring-1 ring-indigo-300' : 'hover:bg-indigo-600'" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all">輸入區</button>
@@ -59,11 +62,14 @@
                         </div>
                     </div>
 
-                    <!-- 假別額度 -->
+                    <!-- 假別額度 (補回全部歸零按鈕) -->
                     <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
                         <div class="bg-slate-50 px-5 py-3 border-b flex justify-between items-center">
                             <h2 class="font-bold text-gray-800 text-sm flex items-center"><i class="fa-solid fa-mug-hot text-amber-500 mr-2"></i>年度假別管控</h2>
-                            <input type="date" v-model="employmentStartDate" class="text-xs border border-gray-200 bg-white px-2 py-1 rounded font-bold text-gray-600">
+                            <!-- 修復：全部歸零按鈕回歸 -->
+                            <button @click="resetHistoricalLeave" class="text-[10px] font-bold text-amber-600 bg-white border border-amber-200 px-2 py-1 rounded shadow-sm hover:bg-amber-50 active:scale-95 transition-all">
+                                <i class="fa-solid fa-rotate-right mr-1"></i>全部歸零
+                            </button>
                         </div>
                         <div class="p-5 grid grid-cols-3 gap-3">
                             <div v-for="(val, key) in leaveLimits" :key="key" class="bg-slate-50 p-3 rounded-xl border relative overflow-hidden flex flex-col justify-between">
@@ -76,6 +82,11 @@
                                     <input type="number" v-model.number="historicalLeave[key]" class="w-8 text-right text-[10px] font-bold bg-transparent focus:outline-none focus:border-b border-indigo-500">
                                 </div>
                             </div>
+                        </div>
+                        <!-- 修復：到職日移到底部獨立顯示，避免擁擠 -->
+                        <div class="px-5 py-3 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between">
+                            <span class="text-[10px] text-gray-500 font-bold">到職日設定 (計算特休用)：</span>
+                            <input type="date" v-model="employmentStartDate" class="text-[10px] border border-gray-200 bg-white px-2 py-1 rounded font-bold text-indigo-700 outline-none">
                         </div>
                     </div>
 
@@ -107,7 +118,7 @@
                                     <input type="number" v-model.number="formData.hours" step="0.5" required class="w-full px-3 py-2 border rounded-lg text-sm font-bold text-gray-700">
                                 </div>
                             </div>
-                            <button type="submit" class="bg-emerald-600 text-white font-bold py-2.5 rounded-xl shadow-sm hover:bg-emerald-700 transition-all flex items-center justify-center mt-1">
+                            <button type="submit" class="bg-emerald-600 text-white font-bold py-2.5 rounded-xl shadow-sm hover:bg-emerald-700 transition-all flex items-center justify-center mt-1 active:scale-[0.98]">
                                 申報送出
                             </button>
                         </form>
@@ -132,13 +143,13 @@
                                     <input type="number" v-model.number="bonusData.amount" required min="1" class="w-full px-3 py-2 border rounded-lg text-sm font-bold text-gray-700 placeholder-gray-300" placeholder="輸入實際發放金額">
                                 </div>
                             </div>
-                            <button type="submit" class="bg-yellow-500 text-white font-bold py-2.5 rounded-xl shadow-sm hover:bg-yellow-600 transition-all flex items-center justify-center mt-1">
+                            <button type="submit" class="bg-yellow-500 text-white font-bold py-2.5 rounded-xl shadow-sm hover:bg-yellow-600 transition-all flex items-center justify-center mt-1 active:scale-[0.98]">
                                 新增獎金
                             </button>
                         </form>
                     </div>
                     
-                    <div class="text-center py-4 text-[10px] text-gray-300 font-bold uppercase tracking-widest">v6.0 完美體驗版</div>
+                    <div class="text-center py-4 text-[10px] text-gray-300 font-bold uppercase tracking-widest">v6.2 終極完整版</div>
                 </div>
 
                 <!-- ================= 第二頁：報表區 ================= -->
@@ -205,7 +216,7 @@
                             <div v-for="r in filteredAndSortedRecords" :key="r.id" class="relative border-b border-gray-50 overflow-hidden bg-red-50">
                                 <!-- 底層紅色刪除按鈕 -->
                                 <div class="absolute right-0 top-0 bottom-0 w-20 flex items-center justify-center">
-                                    <button @click="removeRecord(r.id)" class="w-full h-full text-red-500 font-bold flex flex-col items-center justify-center">
+                                    <button @click="removeRecord(r.id)" class="w-full h-full text-red-500 font-bold flex flex-col items-center justify-center active:bg-red-100 transition">
                                         <i class="fa-solid fa-trash-can text-lg mb-1"></i><span class="text-[10px]">刪除</span>
                                     </button>
                                 </div>
@@ -227,10 +238,24 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- 資料存取與手動備份區塊 -->
+                    <div class="flex gap-4 mt-6">
+                        <button @click="exportData" class="flex-1 bg-white border border-slate-200 py-3 rounded-xl font-bold text-xs text-slate-600 shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-download text-indigo-500"></i>匯出備份 (JSON)
+                        </button>
+                        <div class="flex-1 relative">
+                            <input type="file" @change="importData" class="absolute inset-0 opacity-0 cursor-pointer z-10" accept=".json">
+                            <div class="h-full bg-white border border-slate-200 py-3 rounded-xl font-bold text-xs text-center text-slate-600 shadow-sm flex items-center justify-center gap-2 pointer-events-none">
+                                <i class="fa-solid fa-upload text-emerald-500"></i>匯入舊紀錄
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </transition>
 
-            <!-- 客製化彈窗 -->
+            <!-- 客製化全域彈窗 -->
             <transition name="fade">
                 <div v-if="modal.isOpen" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm px-6 text-center">
                     <div class="bg-white rounded-3xl shadow-2xl w-full max-w-xs overflow-hidden">
@@ -245,7 +270,7 @@
                         <!-- 雙按鈕 Confirm -->
                         <div v-else class="flex border-t border-gray-100">
                             <button @click="modal.isOpen = false" class="flex-1 py-4 text-sm font-bold text-gray-400 border-r border-gray-100 active:bg-gray-50">取消</button>
-                            <button @click="handleModalConfirm" class="flex-1 py-4 text-sm font-black text-red-500 active:bg-red-50 transition-colors">確定刪除</button>
+                            <button @click="handleModalConfirm" class="flex-1 py-4 text-sm font-black text-red-500 active:bg-red-50 transition-colors">確定執行</button>
                         </div>
                     </div>
                 </div>
@@ -259,6 +284,7 @@
         createApp({
             setup() {
                 const currentPage = ref('input');
+                const isOfflineReady = ref(false);
                 const monthlySalary = ref(29500); 
                 const dependentsCount = ref(0);
                 const records = ref([]);
@@ -268,12 +294,26 @@
                 const employmentStartDate = ref('2023-08-07');
                 const historicalLeave = ref({ annual: 0, sick: 0, personal: 0 });
                 const formData = ref({ date: new Date().toISOString().split('T')[0], type: '', hours: 1 });
-                const bonusData = ref({ date: new Date().toISOString().split('T')[0], type: '', amount: null }); // 獎金專用表單
+                const bonusData = ref({ date: new Date().toISOString().split('T')[0], type: '', amount: null }); 
                 
-                // 彈窗與手勢狀態
                 const modal = ref({ isOpen: false, title: '', message: '', type: 'alert', onConfirm: null });
-                const swipeState = ref({}); // 紀錄每列的 X 偏移量
+                const swipeState = ref({}); 
                 
+                // 離線狀態偵測
+                onMounted(() => {
+                    if ('serviceWorker' in navigator) {
+                        navigator.serviceWorker.register('./sw.js').then(reg => {
+                            if (reg.active) isOfflineReady.value = true;
+                            reg.addEventListener('updatefound', () => {
+                                const newWorker = reg.installing;
+                                newWorker.addEventListener('statechange', () => {
+                                    if (newWorker.state === 'activated') isOfflineReady.value = true;
+                                });
+                            });
+                        }).catch(err => console.log('SW Fail', err));
+                    }
+                });
+
                 // --- 【核心 1】: LocalStorage 資料持久化 ---
                 const STORAGE_KEY = 'HR_APP_DATA_V6';
                 onMounted(() => {
@@ -302,7 +342,7 @@
                 const showConfirm = (t, m, c) => modal.value = { isOpen: true, title: t, message: m, type: 'confirm', onConfirm: c };
                 const showAlert = (t, m) => modal.value = { isOpen: true, title: t, message: m, type: 'alert', onConfirm: null };
                 const handleModalConfirm = () => { if (modal.value.onConfirm) modal.value.onConfirm(); modal.value.isOpen = false; };
-                const resetHistoricalLeave = () => showConfirm('歸零確認', '確定將期初假時數重置為 0 嗎？', () => historicalLeave.value = { annual: 0, sick: 0, personal: 0 });
+                const resetHistoricalLeave = () => showConfirm('歸零確認', '確定將期初假時數全部重置為 0 嗎？', () => historicalLeave.value = { annual: 0, sick: 0, personal: 0 });
 
                 // --- 【核心 2】: 長按顯示保險級距 ---
                 let pressTimer = null;
@@ -314,7 +354,7 @@
                             } else {
                                 showAlert('採計投保級距', `目前基本薪資：NT$ ${monthlySalary.value.toLocaleString()}\n\n勞保對應級距：NT$ ${laborBracket.value.toLocaleString()}\n健保對應級距：NT$ ${healthBracket.value.toLocaleString()}`);
                             }
-                        }, 500); // 長按 0.5 秒觸發
+                        }, 500); 
                     }
                 };
                 const cancelPress = () => { clearTimeout(pressTimer); };
@@ -325,20 +365,20 @@
                 const touchStart = (e, id) => {
                     startX = e.touches[0].clientX;
                     currentX = swipeState.value[id] || 0;
-                    Object.keys(swipeState.value).forEach(k => { if(k !== String(id)) swipeState.value[k] = 0; }); // 關閉其他已展開的列
+                    Object.keys(swipeState.value).forEach(k => { if(k !== String(id)) swipeState.value[k] = 0; }); 
                 };
                 const touchMove = (e, id) => {
                     const diff = e.touches[0].clientX - startX;
                     let newX = currentX + diff;
-                    if (newX > 0) newX = 0; // 不允許往右滑
-                    if (newX < -90) newX = -90; // 最大往左滑 90px
+                    if (newX > 0) newX = 0; 
+                    if (newX < -90) newX = -90; 
                     swipeState.value[id] = newX;
                 };
                 const touchEnd = (id) => {
                     if (swipeState.value[id] < -45) {
-                        swipeState.value[id] = -80; // 吸附到展開狀態 (顯示刪除鈕)
+                        swipeState.value[id] = -80; 
                     } else {
-                        swipeState.value[id] = 0; // 彈回關閉狀態
+                        swipeState.value[id] = 0; 
                     }
                 };
 
@@ -369,7 +409,7 @@
                     return Math.round(monthlySalary.value / 240);
                 });
                 const getBracket = (s, tbl) => { 
-                    if (!s || s <= 0) return 0; // 防呆：薪資空值時級距為 0
+                    if (!s || s <= 0) return 0; 
                     if (s < tbl[0]) return tbl[0]; 
                     for (let b of tbl) { if (s <= b) return b; } 
                     return tbl[tbl.length - 1]; 
@@ -404,18 +444,16 @@
                 const removeRecord = (id) => {
                     showConfirm('刪除確認', '確定移除此筆紀錄？', () => {
                         records.value = records.value.filter(r => r.id !== id);
-                        swipeState.value[id] = 0; // 刪除後重置狀態
+                        swipeState.value[id] = 0; 
                     });
                 };
 
-                // --- 【核心 5】: 報表精細分類計算 ---
+                // --- 報表精細分類計算 ---
                 const monthlyRecords = computed(() => records.value.filter(r => r.date.startsWith(targetMonth.value)));
                 
-                // 獲取指定類別的加總
                 const getMonthlySum = (type) => {
                     return monthlyRecords.value.filter(r => r.type === type).reduce((sum, r) => sum + r.amount, 0);
                 };
-                // 獲取所有獎金總和
                 const getBonusSum = () => {
                     return monthlyRecords.value.filter(r => r.type.startsWith('bonus')).reduce((sum, r) => sum + r.amount, 0);
                 };
@@ -423,7 +461,6 @@
                 const totalDeduction = computed(() => Math.abs(monthlyRecords.value.filter(r => r.amount < 0).reduce((s, r) => s + r.amount, 0)));
                 const totalOvertimePay = computed(() => monthlyRecords.value.filter(r => r.amount > 0).reduce((s, r) => s + r.amount, 0));
                 
-                // 實發薪資 (若無底薪則以0計算，直接呈現增減)
                 const estimatedFinalSalary = computed(() => {
                     const base = monthlySalary.value || 0;
                     return base - totalDeduction.value + totalOvertimePay.value - laborFee.value - healthFee.value;
@@ -436,16 +473,14 @@
                     return r.sort((a, b) => new Date(b.date) - new Date(a.date)); 
                 });
 
-                // UI 輔助對應表
                 const typeNameMap = { 'annual':'特休', 'sick':'病假', 'personal':'事假', 'overtime':'平日加班', 'bonus_festival':'三節獎金', 'bonus_incentive':'激勵獎金', 'bonus_yearend':'年終獎金' };
                 const typeBadgeMap = { 'annual':'bg-blue-100 text-blue-700', 'sick':'bg-amber-100 text-amber-700', 'personal':'bg-red-100 text-red-700', 'overtime':'bg-emerald-100 text-emerald-700' };
                 const getTypeName = (t) => typeNameMap[t] || '未知';
                 const getTypeBadgeClass = (t) => t.startsWith('bonus') ? 'bg-yellow-100 text-yellow-700' : (typeBadgeMap[t] || 'bg-gray-100');
                 
-                // 月薪變動時重算所有紀錄 (不影響獎金)
                 watch(monthlySalary, () => {
                     records.value = records.value.map(r => {
-                        if (r.type.startsWith('bonus')) return r; // 獎金不重算
+                        if (r.type.startsWith('bonus')) return r; 
                         const calcAmt = (t, h, w) => {
                             if (t === 'annual') return 0;
                             if (t === 'personal') return -Math.round(w * h);
@@ -457,14 +492,56 @@
                 });
                 watch(currentPage, (p) => { if (p === 'report') unreadCount.value = 0; });
 
+                // --- JSON 資料備份與還原 ---
+                const exportData = () => {
+                    const dataToSave = {
+                        monthlySalary: monthlySalary.value,
+                        dependentsCount: dependentsCount.value,
+                        employmentStartDate: employmentStartDate.value,
+                        historicalLeave: historicalLeave.value,
+                        records: records.value
+                    };
+                    const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `HR紀錄_${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                };
+
+                const importData = (event) => {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const d = JSON.parse(e.target.result);
+                            monthlySalary.value = d.monthlySalary !== undefined ? d.monthlySalary : 29500;
+                            dependentsCount.value = d.dependentsCount || 0;
+                            employmentStartDate.value = d.employmentStartDate || '2023-08-07';
+                            historicalLeave.value = d.historicalLeave || { annual: 0, sick: 0, personal: 0 };
+                            records.value = d.records || [];
+                            showAlert('還原成功', '歷史紀錄與設定已成功載入！\n(系統已自動存檔)');
+                        } catch (error) {
+                            showAlert('匯入失敗', '檔案格式錯誤或已損毀。');
+                        }
+                        event.target.value = ''; 
+                    };
+                    reader.readAsText(file);
+                };
+
                 return { 
-                    currentPage, monthlySalary, dependentsCount, hourlyWage, laborBracket, healthBracket, laborFee, healthFee, 
+                    isOfflineReady, currentPage, monthlySalary, dependentsCount, hourlyWage, laborBracket, healthBracket, laborFee, healthFee, 
                     formData, bonusData, records, monthlyRecords, filteredAndSortedRecords, filterType, targetMonth, unreadCount, 
                     modal, handleModalConfirm, showConfirm, showAlert, addRecord, addBonusRecord, removeRecord, 
                     totalDeduction, totalOvertimePay, estimatedFinalSalary, getMonthlySum, getBonusSum,
                     getTypeName, getTypeBadgeClass, employmentStartDate, historicalLeave, leaveLimits, leaveUsed, leaveBalance, formatDaysHours, resetHistoricalLeave,
-                    // 手勢控制匯出
-                    startPress, cancelPress, touchStart, touchMove, touchEnd, swipeState
+                    startPress, cancelPress, touchStart, touchMove, touchEnd, swipeState,
+                    exportData, importData 
                 };
             }
         }).mount('#app');
