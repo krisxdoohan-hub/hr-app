@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>HR出勤紀錄</title>
-    <!-- 引入外部資源 (需與 sw.js 清單完全一致) -->
+    <!-- CDN 資源：必須與 sw.js 清單完全對齊 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -23,8 +23,8 @@
                 <div class="flex items-center gap-2">
                     <i class="fa-solid fa-calculator text-2xl text-indigo-200"></i>
                     <span class="font-bold text-lg">HR出勤紀錄</span>
-                    <!-- 離線就緒視覺指示燈 -->
-                    <span v-if="isOfflineReady" class="bg-emerald-500 text-[10px] px-2 py-0.5 rounded-full animate-pulse flex items-center">
+                    <!-- 離線就緒指示燈 (如果您在影片沒看到這個，就是版本不對) -->
+                    <span v-if="isOfflineReady" class="bg-emerald-500 text-[10px] px-2 py-0.5 rounded-full animate-pulse flex items-center shadow-sm">
                         <i class="fa-solid fa-cloud-arrow-down mr-1"></i>離線就緒
                     </span>
                 </div>
@@ -39,9 +39,9 @@
 
         <main class="max-w-5xl mx-auto px-4 mt-6">
             <transition name="fade" mode="out-in">
-                <!-- ================= 首頁：輸入區 ================= -->
+                <!-- ================= 第一頁：輸入區 ================= -->
                 <div v-if="currentPage === 'input'" key="input" class="space-y-6">
-                    <!-- 區塊 1: 薪資基礎設定 -->
+                    <!-- 薪資基礎設定 -->
                     <div class="bg-white rounded-2xl shadow-sm border p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-2">每月基本薪資 (2026)</label>
@@ -62,7 +62,7 @@
                         </div>
                     </div>
 
-                    <!-- 區塊 2: 假別額度看板 (含期初設定) -->
+                    <!-- 假別額度看板 -->
                     <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
                         <div class="bg-slate-50 px-6 py-3 border-b flex justify-between items-center">
                             <h2 class="font-bold text-gray-800 text-sm">年度假別額度控管</h2>
@@ -74,49 +74,45 @@
                                 <div class="text-[10px] font-bold text-gray-400 mb-1 uppercase">{{ key === 'annual' ? '特休' : (key === 'sick' ? '病假' : '事假') }}</div>
                                 <div class="flex justify-between items-end">
                                     <div>
-                                        <div class="text-lg font-extrabold text-gray-800">{{ formatDaysHours(leaveBalance[key]) }}</div>
+                                        <div class="text-lg font-extrabold text-gray-800 leading-none">{{ formatDaysHours(leaveBalance[key]) }}</div>
                                         <div class="text-[9px] text-gray-400 mt-1">總額: {{ formatDaysHours(val) }}</div>
                                     </div>
                                     <div class="w-16">
-                                        <input type="number" v-model.number="historicalLeave[key]" class="w-full text-right text-xs border-b border-gray-300 bg-transparent focus:outline-none focus:border-indigo-500" placeholder="期初">
+                                        <input type="number" v-model.number="historicalLeave[key]" class="w-full text-right text-xs border-b bg-transparent focus:outline-none focus:border-indigo-500" placeholder="期初">
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="px-6 pb-4 flex items-center justify-between border-t border-gray-50 pt-4">
+                        <div class="px-6 pb-4 flex items-center justify-between">
                             <span class="text-[10px] text-gray-400 font-bold">到職日設定：</span>
                             <input type="date" v-model="employmentStartDate" class="text-[10px] border-none bg-indigo-50 px-2 py-1 rounded font-bold text-indigo-700">
                         </div>
                     </div>
 
-                    <!-- 區塊 3: 新增出勤紀錄 -->
+                    <!-- 新增紀錄表單 -->
                     <div class="bg-white rounded-2xl shadow-sm border p-6">
                         <form @submit.prevent="addRecord" class="flex flex-col gap-4">
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div>
-                                    <label class="text-[10px] font-bold text-gray-400 mb-1 block">發生日期</label>
+                                    <label class="text-[10px] font-bold text-gray-400 mb-1 block">日期</label>
                                     <input type="date" v-model="formData.date" required class="w-full px-3 py-2 border rounded-lg text-sm">
                                 </div>
                                 <div>
-                                    <label class="text-[10px] font-bold text-gray-400 mb-1 block">假別/加班類別</label>
+                                    <label class="text-[10px] font-bold text-gray-400 mb-1 block">類別</label>
                                     <select v-model="formData.type" class="w-full px-3 py-2 border rounded-lg bg-white text-sm">
                                         <option value="" disabled hidden>請選擇...</option>
-                                        <optgroup label="請假 (以 1h 為單位)">
-                                            <option value="annual">🌴 特休 (不扣薪)</option>
-                                            <option value="sick">💊 病假 (扣半薪)</option>
-                                            <option value="personal">⚠️ 事假 (扣全薪)</option>
-                                        </optgroup>
-                                        <optgroup label="加班 (以 0.5h 為單位)">
-                                            <option value="overtime">⏱️ 平日加班</option>
-                                        </optgroup>
+                                        <option value="annual">🌴 特休</option>
+                                        <option value="sick">💊 病假 (半薪)</option>
+                                        <option value="personal">⚠️ 事假 (全薪)</option>
+                                        <option value="overtime">⏱️ 平日加班</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="text-[10px] font-bold text-gray-400 mb-1 block">申報時數</label>
+                                    <label class="text-[10px] font-bold text-gray-400 mb-1 block">時數</label>
                                     <input type="number" v-model.number="formData.hours" step="0.5" required class="w-full px-3 py-2 border rounded-lg text-sm">
                                 </div>
                             </div>
-                            <button type="submit" class="bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-indigo-700 active:scale-[0.98] transition-all flex items-center justify-center">
+                            <button type="submit" class="bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-indigo-700 transition-all flex items-center justify-center">
                                 <i class="fa-solid fa-paper-plane mr-2"></i>申請送出
                             </button>
                         </form>
@@ -125,100 +121,84 @@
 
                 <!-- ================= 第二頁：報表區 ================= -->
                 <div v-else key="report" class="space-y-6">
-                    <!-- 月份切換 -->
                     <div class="bg-white rounded-2xl border p-4 flex justify-between items-center shadow-sm">
                         <div class="flex items-center text-sm font-bold text-gray-600">
                             <i class="fa-solid fa-calendar-check mr-2 text-indigo-500"></i>結算月份
                         </div>
-                        <input type="month" v-model="targetMonth" class="border rounded-lg px-3 py-1.5 text-indigo-700 font-bold outline-none focus:ring-2 focus:ring-indigo-100">
+                        <input type="month" v-model="targetMonth" class="border rounded-lg px-3 py-1.5 text-indigo-700 font-bold">
                     </div>
 
-                    <!-- 薪資統計看板 -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="bg-white p-5 rounded-2xl border shadow-sm flex flex-col justify-center">
-                            <div class="text-[10px] font-bold text-gray-400 mb-1">本月出勤增減</div>
-                            <div class="font-bold flex items-baseline gap-2">
+                        <div class="bg-white p-5 rounded-2xl border flex flex-col justify-center">
+                            <div class="text-[10px] font-bold text-gray-400 mb-1">本月增減</div>
+                            <div class="font-bold flex gap-2">
                                 <span class="text-emerald-500">+{{ totalOvertimePay.toLocaleString() }}</span>
-                                <span class="text-gray-200">/</span>
+                                <span class="text-gray-200">|</span>
                                 <span class="text-red-500">-{{ totalDeduction.toLocaleString() }}</span>
                             </div>
                         </div>
-                        <div class="bg-white p-5 rounded-2xl border shadow-sm flex flex-col justify-center">
-                            <div class="text-[10px] font-bold text-gray-400 mb-1">法定保險扣款 (自付額)</div>
-                            <div class="font-bold text-amber-600">- NT$ {{ (laborFee + healthFee).toLocaleString() }}</div>
+                        <div class="bg-white p-5 rounded-2xl border flex flex-col justify-center">
+                            <div class="text-[10px] font-bold text-gray-400 mb-1">保險扣款</div>
+                            <div class="font-bold text-amber-600">- {{ (laborFee + healthFee).toLocaleString() }}</div>
                         </div>
-                        <div class="bg-indigo-600 p-5 rounded-2xl text-white shadow-indigo-200 shadow-xl">
-                            <div class="text-[10px] opacity-75 mb-1">{{ targetMonth.slice(5) }}月 預估實發</div>
+                        <div class="bg-indigo-600 p-5 rounded-2xl text-white shadow-xl">
+                            <div class="text-[10px] opacity-75 mb-1">{{ targetMonth.slice(5) }}月 實發預估</div>
                             <div class="text-2xl font-extrabold tracking-tight">NT$ {{ estimatedFinalSalary.toLocaleString() }}</div>
                         </div>
                     </div>
 
-                    <!-- 明細列表 -->
-                    <div class="bg-white rounded-2xl border overflow-hidden shadow-sm">
+                    <!-- 明細表格 -->
+                    <div class="bg-white rounded-2xl border overflow-hidden">
                         <div class="p-4 bg-slate-50 border-b flex justify-between items-center">
-                            <div class="flex items-center gap-2">
-                                <select v-model="filterType" class="text-xs border rounded-lg px-3 py-1 bg-white font-bold text-gray-600">
-                                    <option value="all">顯示全部類別</option>
-                                    <option value="annual">僅看特休</option>
-                                    <option value="sick">僅看病假</option>
-                                    <option value="personal">僅看事假</option>
-                                    <option value="overtime">僅看加班</option>
-                                </select>
-                            </div>
-                            <button @click="showConfirm('清空紀錄', '此動作將永久刪除系統內【所有月份】的紀錄，確定執行？', () => records=[])" class="text-[9px] font-bold text-red-400 hover:underline">清空全系統紀錄</button>
+                            <select v-model="filterType" class="text-xs border rounded-lg px-3 py-1 bg-white font-bold text-gray-600">
+                                <option value="all">顯示全部</option>
+                                <option value="annual">僅特休</option><option value="sick">僅病假</option>
+                                <option value="personal">僅事假</option><option value="overtime">僅加班</option>
+                            </select>
+                            <button @click="showConfirm('清空紀錄', '確定刪除全系統歷史明細？', () => records=[])" class="text-[9px] font-bold text-red-400">清空全紀錄</button>
                         </div>
-                        <div v-if="filteredAndSortedRecords.length === 0" class="p-16 text-center text-gray-300 italic text-sm">
-                            <i class="fa-solid fa-box-open mb-2 block text-2xl"></i>
-                            本月目前無異動明細
-                        </div>
+                        <div v-if="filteredAndSortedRecords.length === 0" class="p-12 text-center text-gray-300 italic text-sm">無異動明細</div>
                         <div v-else class="overflow-x-auto">
                             <table class="w-full text-left">
                                 <thead class="bg-slate-50 text-[10px] text-gray-400 border-b">
-                                    <tr><th class="p-4">日期</th><th class="p-4">類別/時數</th><th class="p-4">金額增減</th><th class="p-4 text-right"></th></tr>
+                                    <tr><th class="p-4">日期</th><th class="p-4">類別</th><th class="p-4">結算</th><th class="p-4"></th></tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="r in filteredAndSortedRecords" :key="r.id" class="border-b border-gray-50 text-xs hover:bg-slate-50">
-                                        <td class="p-4 font-medium text-gray-600">{{ r.date.slice(5) }}</td>
+                                    <tr v-for="r in filteredAndSortedRecords" :key="r.id" class="border-b text-xs">
+                                        <td class="p-4">{{ r.date.slice(5) }}</td>
                                         <td class="p-4">
                                             <span :class="getTypeBadgeClass(r.type)" class="px-2 py-0.5 rounded text-[9px] font-bold">{{ getTypeName(r.type) }}</span>
-                                            <span class="text-[10px] text-gray-400 ml-1">{{ r.hours }}h</span>
+                                            <span class="text-[9px] text-gray-400 ml-1">{{ r.hours }}h</span>
                                         </td>
-                                        <td class="p-4 font-bold" :class="r.amount > 0 ? 'text-emerald-500' : 'text-red-500'">{{ r.amount > 0 ? '+' : '' }}{{ r.amount.toLocaleString() }}</td>
-                                        <td class="p-4 text-right">
-                                            <button @click="removeRecord(r.id)" class="text-gray-300 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash-can"></i></button>
-                                        </td>
+                                        <td class="p-4 font-bold" :class="r.amount > 0 ? 'text-emerald-500' : 'text-red-500'">{{ r.amount > 0 ? '+' : '' }}{{ r.amount }}</td>
+                                        <td class="p-4 text-right"><button @click="removeRecord(r.id)" class="text-gray-300 hover:text-red-500"><i class="fa-solid fa-trash-can"></i></button></td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
-                    <!-- 資料備份區 -->
                     <div class="flex gap-4">
-                        <button @click="exportData" class="flex-1 bg-white border border-slate-200 py-3 rounded-xl font-bold text-xs shadow-sm active:scale-95 transition-all text-slate-600 flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-download text-indigo-500"></i>匯出紀錄 (JSON)
-                        </button>
+                        <button @click="exportData" class="flex-1 bg-white border py-3 rounded-xl font-bold text-xs shadow-sm"><i class="fa-solid fa-download mr-1 text-indigo-500"></i>匯出備份</button>
                         <div class="flex-1 relative">
                             <input type="file" @change="importData" class="absolute inset-0 opacity-0 cursor-pointer">
-                            <div class="h-full bg-white border border-slate-200 py-3 rounded-xl font-bold text-xs text-center shadow-sm text-slate-600 flex items-center justify-center gap-2 pointer-events-none">
-                                <i class="fa-solid fa-upload text-emerald-500"></i>匯入舊資料
-                            </div>
+                            <div class="h-full bg-white border py-3 rounded-xl font-bold text-xs text-center shadow-sm flex items-center justify-center"><i class="fa-solid fa-upload mr-1 text-emerald-500"></i>匯入紀錄</div>
                         </div>
                     </div>
                 </div>
             </transition>
 
-            <!-- 客製化全域彈窗 (解決內嵌阻攔問題) -->
+            <!-- 彈窗 -->
             <transition name="fade">
                 <div v-if="modal.isOpen" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-6">
                     <div class="bg-white rounded-3xl shadow-2xl w-full max-w-xs overflow-hidden">
                         <div class="p-8 text-center">
                             <h3 class="text-lg font-bold text-gray-800 mb-2">{{ modal.title }}</h3>
-                            <p class="text-sm text-gray-500 leading-relaxed">{{ modal.message }}</p>
+                            <p class="text-sm text-gray-500">{{ modal.message }}</p>
                         </div>
-                        <div class="flex border-t border-gray-100">
-                            <button v-if="modal.type === 'confirm'" @click="modal.isOpen = false" class="flex-1 py-4 text-sm font-bold text-gray-400 border-r border-gray-100">取消</button>
-                            <button @click="handleModalConfirm" :class="modal.isError ? 'text-red-600' : 'text-indigo-600'" class="flex-1 py-4 text-sm font-black active:bg-gray-50 transition-colors">確定</button>
+                        <div class="flex border-t">
+                            <button v-if="modal.type === 'confirm'" @click="modal.isOpen = false" class="flex-1 py-4 text-sm font-bold text-gray-400 border-r">取消</button>
+                            <button @click="handleModalConfirm" :class="modal.isError ? 'text-red-600' : 'text-indigo-600'" class="flex-1 py-4 text-sm font-black">確定</button>
                         </div>
                     </div>
                 </div>
@@ -244,7 +224,7 @@
                 const formData = ref({ date: new Date().toISOString().split('T')[0], type: '', hours: 1 });
                 const modal = ref({ isOpen: false, title: '', message: '', type: 'alert', isError: false, onConfirm: null });
 
-                // --- Service Worker 強化註冊啟動 ---
+                // --- 重要：Service Worker 註冊與狀態偵測 ---
                 onMounted(() => {
                     if ('serviceWorker' in navigator) {
                         navigator.serviceWorker.register('./sw.js').then(reg => {
@@ -255,17 +235,15 @@
                                     if (newWorker.state === 'activated') isOfflineReady.value = true;
                                 });
                             });
-                        }).catch(err => console.log('SW Registration Fail', err));
+                        }).catch(err => console.log('SW Fail', err));
                     }
                 });
 
-                // 彈窗輔助
                 const showConfirm = (t, m, c) => modal.value = { isOpen: true, title: t, message: m, type: 'confirm', isError: false, onConfirm: c };
                 const showAlert = (t, m, e = false) => modal.value = { isOpen: true, title: t, message: m, type: 'alert', isError: e, onConfirm: null };
                 const handleModalConfirm = () => { if (modal.value.onConfirm) modal.value.onConfirm(); modal.value.isOpen = false; };
-                const resetHistoricalLeave = () => showConfirm('歸零確認', '確定將所有期初已休假時數重置為 0 嗎？', () => historicalLeave.value = { annual: 0, sick: 0, personal: 0 });
+                const resetHistoricalLeave = () => showConfirm('歸零確認', '確定重置所有期初假時數？', () => historicalLeave.value = { annual: 0, sick: 0, personal: 0 });
 
-                // 核心計算：特休天數
                 const annualLeaveTotalHours = computed(() => {
                     const diffYears = (new Date() - new Date(employmentStartDate.value)) / (1000 * 60 * 60 * 24 * 365.25);
                     let days = 0;
@@ -278,7 +256,6 @@
                     return days * 8;
                 });
 
-                // 假別額度整合
                 const leaveUsed = computed(() => {
                     const u = { annual: historicalLeave.value.annual, sick: historicalLeave.value.sick, personal: historicalLeave.value.personal };
                     records.value.forEach(r => { if (u[r.type] !== undefined) u[r.type] += r.hours; });
@@ -287,8 +264,6 @@
                 const leaveLimits = computed(() => ({ annual: annualLeaveTotalHours.value, sick: 240, personal: 112 }));
                 const leaveBalance = computed(() => ({ annual: Math.max(0, leaveLimits.value.annual - leaveUsed.value.annual), sick: Math.max(0, leaveLimits.value.sick - leaveUsed.value.sick), personal: Math.max(0, leaveLimits.value.personal - leaveUsed.value.personal) }));
                 const formatDaysHours = (h) => h % 8 === 0 ? `${h / 8}天` : `${Math.floor(h / 8)}天${h % 8}h`;
-                
-                // 薪資計算邏輯
                 const hourlyWage = computed(() => Math.round(monthlySalary.value / 240));
                 const getBracket = (s, tbl) => { if (s < tbl[0]) return tbl[0]; for (let b of tbl) { if (s <= b) return b; } return tbl[tbl.length - 1]; };
                 const laborBracket = computed(() => getBracket(monthlySalary.value, [29500, 30300, 31800, 33300, 34800, 36300, 38200, 40100, 42000, 43900, 45800]));
@@ -296,9 +271,8 @@
                 const laborFee = computed(() => Math.round(laborBracket.value * 0.125 * 0.2));
                 const healthFee = computed(() => Math.round(healthBracket.value * 0.0517 * 0.3) * (1 + dependentsCount.value));
 
-                // 紀錄操作
                 const addRecord = () => {
-                    if (!formData.value.type) return showAlert('尚未選取', '請先選擇假別或加班類別', true);
+                    if (!formData.value.type) return showAlert('錯誤', '請先選擇類別', true);
                     const calcAmt = (t, h, w) => {
                         if (t === 'annual') return 0;
                         if (t === 'personal') return -Math.round(w * h);
@@ -306,48 +280,19 @@
                         return Math.round(h <= 2 ? w * 1.34 * h : (w * 1.34 * 2) + (w * 1.67 * (h - 2)));
                     };
                     records.value.push({ id: Date.now(), date: formData.value.date, type: formData.value.type, hours: formData.value.hours, amount: calcAmt(formData.value.type, formData.value.hours, hourlyWage.value) });
-                    unreadCount.value++;
-                    formData.value = { date: new Date().toISOString().split('T')[0], type: '', hours: 1 };
+                    unreadCount.value++; formData.value = { date: new Date().toISOString().split('T')[0], type: '', hours: 1 };
                 };
-                const removeRecord = (id) => showConfirm('刪除確認', '確定移除此筆異動紀錄？', () => records.value = records.value.filter(r => r.id !== id));
-
-                // 報表結算
+                const removeRecord = (id) => showConfirm('刪除', '確定移除？', () => records.value = records.value.filter(r => r.id !== id));
                 const monthlyRecords = computed(() => records.value.filter(r => r.date.startsWith(targetMonth.value)));
                 const totalDeduction = computed(() => Math.abs(monthlyRecords.value.filter(r => r.amount < 0).reduce((s, r) => s + r.amount, 0)));
                 const totalOvertimePay = computed(() => monthlyRecords.value.filter(r => r.amount > 0).reduce((s, r) => s + r.amount, 0));
                 const estimatedFinalSalary = computed(() => monthlySalary.value - totalDeduction.value + totalOvertimePay.value - laborFee.value - healthFee.value);
-                const filteredAndSortedRecords = computed(() => { 
-                    let r = monthlyRecords.value; 
-                    if (filterType.value !== 'all') r = r.filter(x => x.type === filterType.value);
-                    return r.sort((a, b) => new Date(b.date) - new Date(a.date)); 
-                });
-
+                const filteredAndSortedRecords = computed(() => { let r = monthlyRecords.value; if (filterType.value !== 'all') r = r.filter(x => x.type === filterType.value); return r.sort((a, b) => new Date(b.date) - new Date(a.date)); });
                 const getTypeName = (t) => ({ annual: '特休', sick: '病假', personal: '事假', overtime: '加班' }[t] || '未知');
                 const getTypeBadgeClass = (t) => ({ annual: 'bg-blue-100 text-blue-700', sick: 'bg-amber-100 text-amber-700', personal: 'bg-red-100 text-red-700', overtime: 'bg-green-100 text-green-700' }[t] || 'bg-gray-100');
-                
                 watch(currentPage, (p) => { if (p === 'report') unreadCount.value = 0; });
-                
-                // 資料備份
-                const exportData = () => { 
-                    const blob = new Blob([JSON.stringify({ monthlySalary: monthlySalary.value, dependentsCount: dependentsCount.value, employmentStartDate: employmentStartDate.value, historicalLeave: historicalLeave.value, records: records.value }, null, 2)], { type: "application/json" });
-                    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `HR紀錄_${new Date().toISOString().split('T')[0]}.json`;
-                    a.click();
-                };
-                const importData = (ev) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        try {
-                            const d = JSON.parse(e.target.result);
-                            monthlySalary.value = d.monthlySalary || 29500;
-                            dependentsCount.value = d.dependentsCount || 0;
-                            employmentStartDate.value = d.employmentStartDate || '2023-08-07';
-                            historicalLeave.value = d.historicalLeave || { annual: 0, sick: 0, personal: 0 };
-                            records.value = d.records || [];
-                            showAlert('還原成功', '歷史紀錄與設定已同步載入！');
-                        } catch { showAlert('讀取失敗', '檔案格式錯誤。', true); }
-                    };
-                    reader.readAsText(ev.target.files[0]);
-                };
+                const exportData = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify({ monthlySalary: monthlySalary.value, dependentsCount: dependentsCount.value, employmentStartDate: employmentStartDate.value, historicalLeave: historicalLeave.value, records: records.value }, null, 2)], { type: "application/json" })); a.download = `HR紀錄_${new Date().toISOString().split('T')[0]}.json`; a.click(); };
+                const importData = (ev) => { const reader = new FileReader(); reader.onload = (e) => { try { const d = JSON.parse(e.target.result); monthlySalary.value = d.monthlySalary; dependentsCount.value = d.dependentsCount; employmentStartDate.value = d.employmentStartDate; historicalLeave.value = d.historicalLeave; records.value = d.records; showAlert('完成', '匯入成功！'); } catch { showAlert('失敗', '檔案格式損毀。', true); } }; reader.readAsText(ev.target.files[0]); };
 
                 return { isOfflineReady, currentPage, monthlySalary, dependentsCount, hourlyWage, laborBracket, healthBracket, laborFee, healthFee, formData, records, monthlyRecords, filteredAndSortedRecords, filterType, targetMonth, unreadCount, modal, handleModalConfirm, showConfirm, showAlert, addRecord, removeRecord, totalDeduction, totalOvertimePay, estimatedFinalSalary, getTypeName, getTypeBadgeClass, employmentStartDate, historicalLeave, leaveLimits, leaveUsed, leaveBalance, formatDaysHours, resetHistoricalLeave, exportData, importData };
             }
