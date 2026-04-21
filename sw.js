@@ -1,9 +1,9 @@
 /**
- * HR 出勤紀錄系統 - 離線引擎 (v7 真PWA版)
+ * HR 出勤紀錄系統 - 離線引擎 (v7.1 真PWA版)
  * 功能：100% 預載資源，包含 manifest 描述檔，確保斷網環境完美運作。
  */
 
-const CACHE_NAME = 'hr-attendance-v7';
+const CACHE_NAME = 'hr-attendance-v7.1';
 
 // 必須與 index.html 引用資源完全一致，並加入 manifest.json
 const ASSETS = [
