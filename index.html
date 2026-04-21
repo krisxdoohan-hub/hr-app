@@ -134,6 +134,7 @@
                                         <option value="bonus_festival">🎁 三節獎金</option>
                                         <option value="bonus_incentive">🚀 激勵獎金</option>
                                         <option value="bonus_yearend">🧧 年終獎金</option>
+                                        <option value="bonus_birthday">🎂 生日禮金</option>
                                     </select>
                                 </div>
                                 <div>
@@ -145,7 +146,7 @@
                         </form>
                     </div>
                     
-                    <div class="text-center py-4 text-[10px] text-gray-300 font-bold uppercase tracking-widest">v7.4 獎金日期自訂版</div>
+                    <div class="text-center py-4 text-[10px] text-gray-300 font-bold uppercase tracking-widest">v7.5 生日禮金版</div>
                 </div>
 
                 <!-- ================= 第二頁：報表區 ================= -->
@@ -404,7 +405,6 @@
                     if (!bonusData.value.type) return showAlert('警告', '請選擇獎金名目');
                     if (!bonusData.value.amount || bonusData.value.amount <= 0) return showAlert('警告', '請輸入有效金額');
                     
-                    // 修正：不再強制使用 targetMonth，而是讀取表單上的自訂日期
                     records.value.push({ 
                         id: Date.now(), 
                         date: bonusData.value.date, 
@@ -414,7 +414,6 @@
                     });
                     
                     unreadCount.value++; 
-                    // 恢復預設值（保留當天日期方便連續輸入）
                     bonusData.value = { date: new Date().toISOString().split('T')[0], type: '', amount: null };
                 };
 
@@ -437,7 +436,8 @@
                     return r.sort((a, b) => new Date(b.date) - new Date(a.date)); 
                 });
 
-                const typeNameMap = { 'annual':'特休', 'sick':'病假', 'personal':'事假', 'overtime':'加班', 'bonus_festival':'三節', 'bonus_incentive':'激勵', 'bonus_yearend':'年終' };
+                // 【修正：在此處加入生日禮金的顯示對應】
+                const typeNameMap = { 'annual':'特休', 'sick':'病假', 'personal':'事假', 'overtime':'加班', 'bonus_festival':'三節', 'bonus_incentive':'激勵', 'bonus_yearend':'年終', 'bonus_birthday':'生日禮金' };
                 const getTypeName = (t) => typeNameMap[t] || '未知';
                 const getTypeBadgeClass = (t) => t.startsWith('bonus') ? 'bg-yellow-100 text-yellow-700' : ({ 'annual':'bg-blue-100 text-blue-700', 'sick':'bg-amber-100 text-amber-700', 'personal':'bg-red-100 text-red-700', 'overtime':'bg-emerald-100 text-emerald-700' }[t] || 'bg-gray-100');
                 
