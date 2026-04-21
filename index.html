@@ -122,7 +122,11 @@
                     <div class="bg-white rounded-2xl shadow-sm border p-5">
                         <h2 class="font-bold text-gray-800 text-sm border-b pb-2 mb-4 flex items-center"><i class="fa-solid fa-sack-dollar text-yellow-500 mr-2"></i>額外獎金收入申報</h2>
                         <form @submit.prevent="addBonusRecord" class="flex flex-col gap-3">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div>
+                                    <label class="text-[10px] font-bold text-gray-400 mb-1 block">發放日期</label>
+                                    <input type="date" v-model="bonusData.date" required class="w-full px-3 py-2 border rounded-lg text-sm font-bold text-gray-700">
+                                </div>
                                 <div>
                                     <label class="text-[10px] font-bold text-gray-400 mb-1 block">獎金名目</label>
                                     <select v-model="bonusData.type" class="w-full px-3 py-2 border rounded-lg bg-white text-sm font-bold text-gray-700">
@@ -141,7 +145,7 @@
                         </form>
                     </div>
                     
-                    <div class="text-center py-4 text-[10px] text-gray-300 font-bold uppercase tracking-widest">v7.3 跨平台雙軌修復版</div>
+                    <div class="text-center py-4 text-[10px] text-gray-300 font-bold uppercase tracking-widest">v7.4 獎金日期自訂版</div>
                 </div>
 
                 <!-- ================= 第二頁：報表區 ================= -->
@@ -189,20 +193,17 @@
                                 <option value="personal">僅事假</option><option value="overtime">僅加班</option>
                                 <option value="bonus">僅獎金</option>
                             </select>
-                            <!-- 手機版顯示左滑提示，電腦版顯示點擊提示 -->
                             <span class="text-[9px] text-gray-400 font-bold md:hidden"><i class="fa-solid fa-arrow-left mr-1"></i>左滑刪除</span>
                             <span class="text-[9px] text-gray-400 font-bold hidden md:inline"><i class="fa-solid fa-trash-can mr-1"></i>點擊右側圖示刪除</span>
                         </div>
                         <div v-if="filteredAndSortedRecords.length === 0" class="p-12 text-center text-gray-300 italic text-sm font-bold">無紀錄</div>
                         <div v-else class="flex flex-col">
                             <div v-for="r in filteredAndSortedRecords" :key="r.id" class="relative border-b border-gray-50 overflow-hidden bg-red-50">
-                                <!-- 手機版隱藏底層紅色刪除按鈕 -->
                                 <div class="absolute right-0 top-0 bottom-0 w-20 flex items-center justify-center">
                                     <button @click.stop="removeRecord(r.id)" class="w-full h-full text-red-500 font-bold flex flex-col items-center justify-center active:bg-red-100 transition">
                                         <i class="fa-solid fa-trash-can text-lg mb-1"></i><span class="text-[10px]">刪除</span>
                                     </button>
                                 </div>
-                                <!-- 列表主內容區塊 -->
                                 <div class="relative bg-white p-4 flex justify-between items-center transition-transform duration-200"
                                      @touchstart="touchStart($event, r.id)" @touchmove="touchMove($event, r.id)" @touchend="touchEnd(r.id)"
                                      :style="{ transform: `translateX(${swipeState[r.id] || 0}px)` }">
@@ -217,7 +218,6 @@
                                         <div class="font-black text-sm" :class="r.amount > 0 ? 'text-emerald-500' : (r.amount < 0 ? 'text-red-500' : 'text-gray-400')">
                                             {{ r.amount > 0 ? '+' : '' }}{{ r.amount === 0 ? '無扣款' : r.amount.toLocaleString() }}
                                         </div>
-                                        <!-- 新增：專屬電腦版的刪除按鈕 (手機版隱藏 md:hidden，電腦版顯示 md:flex) -->
                                         <button @click.stop="removeRecord(r.id)" class="hidden md:flex ml-4 text-gray-300 hover:text-red-500 transition-colors items-center justify-center w-8 h-8 rounded-full hover:bg-red-50" title="刪除此紀錄">
                                             <i class="fa-solid fa-trash-can text-lg"></i>
                                         </button>
@@ -227,7 +227,6 @@
                         </div>
                     </div>
 
-                    <!-- 匯出匯入區塊 -->
                     <div class="flex gap-4 mt-6">
                         <button @click="exportData" class="flex-1 bg-indigo-50 border border-indigo-200 py-3 rounded-xl font-bold text-xs text-indigo-700 shadow-sm active:scale-95 flex items-center justify-center gap-2 transition-all hover:bg-indigo-100">
                             <i class="fa-solid fa-download"></i>直接存檔
@@ -404,8 +403,19 @@
                 const addBonusRecord = () => {
                     if (!bonusData.value.type) return showAlert('警告', '請選擇獎金名目');
                     if (!bonusData.value.amount || bonusData.value.amount <= 0) return showAlert('警告', '請輸入有效金額');
-                    records.value.push({ id: Date.now(), date: targetMonth.value + '-01', type: bonusData.value.type, hours: 0, amount: bonusData.value.amount });
-                    unreadCount.value++; bonusData.value = { date: new Date().toISOString().split('T')[0], type: '', amount: null };
+                    
+                    // 修正：不再強制使用 targetMonth，而是讀取表單上的自訂日期
+                    records.value.push({ 
+                        id: Date.now(), 
+                        date: bonusData.value.date, 
+                        type: bonusData.value.type, 
+                        hours: 0, 
+                        amount: bonusData.value.amount 
+                    });
+                    
+                    unreadCount.value++; 
+                    // 恢復預設值（保留當天日期方便連續輸入）
+                    bonusData.value = { date: new Date().toISOString().split('T')[0], type: '', amount: null };
                 };
 
                 const removeRecord = (id) => {
