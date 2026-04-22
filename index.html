@@ -146,7 +146,7 @@
                         </form>
                     </div>
                     
-                    <div class="text-center py-4 text-[10px] text-gray-300 font-bold uppercase tracking-widest">v7.5 生日禮金版</div>
+                    <div class="text-center py-4 text-[10px] text-gray-300 font-bold uppercase tracking-widest">v8.0 GitHub 雲端同步版</div>
                 </div>
 
                 <!-- ================= 第二頁：報表區 ================= -->
@@ -228,16 +228,50 @@
                         </div>
                     </div>
 
+                    <!-- 原本的本地檔案匯出匯入區塊 -->
                     <div class="flex gap-4 mt-6">
                         <button @click="exportData" class="flex-1 bg-indigo-50 border border-indigo-200 py-3 rounded-xl font-bold text-xs text-indigo-700 shadow-sm active:scale-95 flex items-center justify-center gap-2 transition-all hover:bg-indigo-100">
-                            <i class="fa-solid fa-download"></i>直接存檔
+                            <i class="fa-solid fa-download"></i>下載本機存檔
                         </button>
                         <div class="flex-1 relative">
                             <input type="file" @change="importData" 
                                    class="absolute inset-0 opacity-0 cursor-pointer z-10" 
                                    accept="application/json">
                             <div class="h-full bg-emerald-50 border border-emerald-200 py-3 rounded-xl font-bold text-xs text-center text-emerald-700 shadow-sm flex items-center justify-center gap-2 pointer-events-none transition-all">
-                                <i class="fa-solid fa-upload"></i>匯入舊紀錄
+                                <i class="fa-solid fa-upload"></i>匯入本機紀錄
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- v8.0 全新 GitHub API 雲端同步區塊 -->
+                    <div class="bg-slate-800 rounded-2xl shadow-xl border border-slate-700 p-5 mt-6 text-white relative overflow-hidden">
+                        <div class="absolute right-0 top-0 w-16 h-16 bg-blue-500 rounded-bl-full opacity-20"></div>
+                        <h2 class="font-bold text-lg mb-4 flex items-center">
+                            <i class="fa-brands fa-github text-2xl mr-2 text-blue-400"></i> GitHub 雲端同步
+                        </h2>
+                        
+                        <div class="space-y-4 relative z-10">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 mb-1">GitHub 金鑰 (Personal Access Token)</label>
+                                <input type="password" v-model="cloudToken" placeholder="輸入您的 GitHub 金鑰 (ghp_...)" 
+                                       class="w-full px-3 py-2 border border-slate-600 bg-slate-900 rounded-lg text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-400 mb-1">雲端代碼 (Gist ID) - <span class="font-normal text-amber-400">跨裝置下載請輸入同一組</span></label>
+                                <input type="text" v-model="cloudGistId" placeholder="首次上傳將自動生成代碼" 
+                                       class="w-full px-3 py-2 border border-slate-600 bg-slate-900 rounded-lg text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                            
+                            <div class="flex gap-3 pt-2">
+                                <button @click="uploadToCloud" :disabled="isSyncing" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-lg shadow-sm text-xs transition disabled:opacity-50 flex justify-center items-center">
+                                    <i class="fa-solid" :class="isSyncing ? 'fa-spinner fa-spin' : 'fa-cloud-arrow-up'"></i>
+                                    <span class="ml-1">{{ isSyncing ? '處理中...' : '上傳備份至雲端' }}</span>
+                                </button>
+                                <button @click="downloadFromCloud" :disabled="isSyncing" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-lg shadow-sm text-xs transition disabled:opacity-50 flex justify-center items-center">
+                                    <i class="fa-solid" :class="isSyncing ? 'fa-spinner fa-spin' : 'fa-cloud-arrow-down'"></i>
+                                    <span class="ml-1">{{ isSyncing ? '處理中...' : '從雲端下載覆蓋' }}</span>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -247,7 +281,7 @@
 
             <!-- 彈窗 -->
             <transition name="fade">
-                <div v-if="modal.isOpen" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm px-6 text-center">
+                <div v-if="modal.isOpen" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm px-6 text-center">
                     <div class="bg-white rounded-3xl shadow-2xl w-full max-w-xs overflow-hidden">
                         <div class="p-8">
                             <h3 class="text-lg font-black text-gray-800 mb-3">{{ modal.title }}</h3>
@@ -286,6 +320,11 @@
                 const modal = ref({ isOpen: false, title: '', message: '', type: 'alert', onConfirm: null });
                 const swipeState = ref({}); 
                 
+                // v8.0 雲端同步狀態
+                const cloudToken = ref('');
+                const cloudGistId = ref('');
+                const isSyncing = ref(false);
+                
                 onMounted(() => {
                     if ('serviceWorker' in navigator) {
                         navigator.serviceWorker.register('./sw.js').then(reg => {
@@ -301,7 +340,10 @@
                 });
 
                 const STORAGE_KEY = 'HR_APP_DATA_V6';
+                const SYNC_KEY = 'HR_APP_CLOUD_SYNC'; // 用來存金鑰的
+
                 onMounted(() => {
+                    // 讀取薪資資料
                     const saved = localStorage.getItem(STORAGE_KEY);
                     if (saved) {
                         try {
@@ -313,6 +355,16 @@
                             employmentStartDate.value = d.employmentStartDate || '2023-08-07';
                         } catch (e) { console.error("資料讀取失敗"); }
                     }
+                    
+                    // 讀取雲端金鑰資料
+                    const savedSync = localStorage.getItem(SYNC_KEY);
+                    if (savedSync) {
+                        try {
+                            const syncD = JSON.parse(savedSync);
+                            cloudToken.value = syncD.token || '';
+                            cloudGistId.value = syncD.gistId || '';
+                        } catch (e) { console.error("同步設定讀取失敗"); }
+                    }
                 });
 
                 watch([monthlySalary, dependentsCount, records, historicalLeave, employmentStartDate], (newVals) => {
@@ -321,6 +373,11 @@
                         historicalLeave: newVals[3], employmentStartDate: newVals[4]
                     }));
                 }, { deep: true });
+
+                // 監聽金鑰與代碼變動自動存檔
+                watch([cloudToken, cloudGistId], (newVals) => {
+                    localStorage.setItem(SYNC_KEY, JSON.stringify({ token: newVals[0], gistId: newVals[1] }));
+                });
 
                 const showConfirm = (t, m, c) => modal.value = { isOpen: true, title: t, message: m, type: 'confirm', onConfirm: c };
                 const showAlert = (t, m) => modal.value = { isOpen: true, title: t, message: m, type: 'alert', onConfirm: null };
@@ -436,7 +493,6 @@
                     return r.sort((a, b) => new Date(b.date) - new Date(a.date)); 
                 });
 
-                // 【修正：在此處加入生日禮金的顯示對應】
                 const typeNameMap = { 'annual':'特休', 'sick':'病假', 'personal':'事假', 'overtime':'加班', 'bonus_festival':'三節', 'bonus_incentive':'激勵', 'bonus_yearend':'年終', 'bonus_birthday':'生日禮金' };
                 const getTypeName = (t) => typeNameMap[t] || '未知';
                 const getTypeBadgeClass = (t) => t.startsWith('bonus') ? 'bg-yellow-100 text-yellow-700' : ({ 'annual':'bg-blue-100 text-blue-700', 'sick':'bg-amber-100 text-amber-700', 'personal':'bg-red-100 text-red-700', 'overtime':'bg-emerald-100 text-emerald-700' }[t] || 'bg-gray-100');
@@ -477,13 +533,107 @@
                     reader.readAsText(file);
                 };
 
+                // --- v8.0 GitHub 雲端同步核心邏輯 ---
+                const uploadToCloud = async () => {
+                    if (!cloudToken.value) return showAlert('同步失敗', '請先輸入有效的 GitHub 金鑰 (Personal Access Token)');
+                    isSyncing.value = true;
+                    
+                    const dataToSave = {
+                        monthlySalary: monthlySalary.value,
+                        dependentsCount: dependentsCount.value,
+                        employmentStartDate: employmentStartDate.value,
+                        historicalLeave: historicalLeave.value,
+                        records: records.value
+                    };
+                    const content = JSON.stringify(dataToSave, null, 2);
+
+                    try {
+                        const headers = {
+                            'Authorization': `Bearer ${cloudToken.value}`,
+                            'Accept': 'application/vnd.github.v3+json',
+                            'Content-Type': 'application/json'
+                        };
+
+                        if (cloudGistId.value) {
+                            // 雲端代碼已存在，執行更新 (PATCH)
+                            const res = await fetch(`https://api.github.com/gists/${cloudGistId.value}`, {
+                                method: 'PATCH',
+                                headers,
+                                body: JSON.stringify({
+                                    files: { 'hr_data_sync.json': { content } }
+                                })
+                            });
+                            if (!res.ok) throw new Error('API連線失敗');
+                            showAlert('雲端上傳成功', '您的資料已成功覆蓋至 GitHub 雲端！');
+                        } else {
+                            // 第一次同步，建立新的 Gist (POST)
+                            const res = await fetch('https://api.github.com/gists', {
+                                method: 'POST',
+                                headers,
+                                body: JSON.stringify({
+                                    description: 'HR_Attendance_Cloud_Sync',
+                                    public: false, // 設為私密
+                                    files: { 'hr_data_sync.json': { content } }
+                                })
+                            });
+                            if (!res.ok) throw new Error('API連線失敗');
+                            const resData = await res.json();
+                            cloudGistId.value = resData.id; // 自動填入新產生的 Gist ID
+                            showAlert('雲端建立成功', `已在您的 GitHub 建立專屬私密資料夾！\n\n您的專屬雲端代碼為：\n${resData.id}\n\n請將此代碼複製到其他裝置，即可進行雙向同步。`);
+                        }
+                    } catch (err) {
+                        showAlert('上傳失敗', '連線錯誤，請確認您的金鑰 (Token) 是否正確，並且擁有存取 gists 的權限。');
+                    } finally {
+                        isSyncing.value = false;
+                    }
+                };
+
+                const downloadFromCloud = async () => {
+                    if (!cloudToken.value || !cloudGistId.value) {
+                        return showAlert('同步失敗', '請確認「GitHub 金鑰」與「雲端代碼 (Gist ID)」皆已填寫！');
+                    }
+                    
+                    showConfirm('下載確認', '執行下載將會「完全覆蓋」您這台裝置上目前的資料，確定要繼續嗎？', async () => {
+                        isSyncing.value = true;
+                        try {
+                            const res = await fetch(`https://api.github.com/gists/${cloudGistId.value}`, {
+                                headers: {
+                                    'Authorization': `Bearer ${cloudToken.value}`,
+                                    'Accept': 'application/vnd.github.v3+json'
+                                }
+                            });
+                            
+                            if (!res.ok) throw new Error('API連線失敗');
+                            
+                            const resData = await res.json();
+                            const contentStr = resData.files['hr_data_sync.json'].content;
+                            const d = JSON.parse(contentStr);
+                            
+                            // 安全寫入本機資料
+                            monthlySalary.value = d.monthlySalary !== undefined ? d.monthlySalary : 29500;
+                            dependentsCount.value = d.dependentsCount || 0;
+                            employmentStartDate.value = d.employmentStartDate || '2023-08-07';
+                            historicalLeave.value = d.historicalLeave || { annual: 0, sick: 0, personal: 0 };
+                            records.value = d.records || [];
+                            
+                            showAlert('還原成功', '雲端資料已成功下載，並覆蓋本機設定！');
+                        } catch (err) {
+                            showAlert('下載失敗', '連線錯誤，請確認金鑰與代碼是否正確，或檔案已被刪除。');
+                        } finally {
+                            isSyncing.value = false;
+                        }
+                    });
+                };
+
                 return { 
                     isOfflineReady, currentPage, monthlySalary, dependentsCount, hourlyWage, laborBracket, healthBracket, laborFee, healthFee, 
                     formData, bonusData, records, monthlyRecords, filteredAndSortedRecords, filterType, targetMonth, unreadCount, 
                     modal, handleModalConfirm, showConfirm, showAlert, addRecord, addBonusRecord, removeRecord, 
                     getMonthlySum, getBonusSum, estimatedFinalSalary,
                     getTypeName, getTypeBadgeClass, employmentStartDate, historicalLeave, leaveLimits, leaveUsed, leaveBalance, formatDaysHours, resetHistoricalLeave,
-                    startPress, cancelPress, touchStart, touchMove, touchEnd, swipeState, exportData, importData 
+                    startPress, cancelPress, touchStart, touchMove, touchEnd, swipeState, exportData, importData,
+                    // 導出 v8.0 雲端同步屬性
+                    cloudToken, cloudGistId, isSyncing, uploadToCloud, downloadFromCloud
                 };
             }
         }).mount('#app');
