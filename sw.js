@@ -3,7 +3,7 @@
  * 功能：100% 預載資源，包含 manifest 描述檔，確保斷網環境完美運作。
  */
 
-const CACHE_NAME = 'hr-attendance-v7.5';
+const CACHE_NAME = 'hr-attendance-v8.0';
 
 // 必須與 index.html 引用資源完全一致，並加入 manifest.json
 const ASSETS = [
