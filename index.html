@@ -332,7 +332,18 @@
             setup() {
                 const currentPage = ref('input');
                 const isOfflineReady = ref(false);
-                const monthlySalary = ref(29500); 
+                
+                // 新增各月薪資物件，並設定自動繼承邏輯
+                const monthlySalaries = ref({}); 
+                const monthlySalary = computed({
+                    get: () => {
+                        if (monthlySalaries.value[targetMonth.value]) return monthlySalaries.value[targetMonth.value];
+                        const pastMonths = Object.keys(monthlySalaries.value).filter(m => m < targetMonth.value).sort().reverse();
+                        return pastMonths.length > 0 ? monthlySalaries.value[pastMonths[0]] : 29500;
+                    },
+                    set: (val) => { monthlySalaries.value[targetMonth.value] = val; }
+                });
+                
                 const dependentsCount = ref(0);
                 const records = ref([]);
                 const unreadCount = ref(0);
@@ -379,7 +390,10 @@
                     if (saved) {
                         try {
                             const d = JSON.parse(saved);
-                            monthlySalary.value = d.monthlySalary !== undefined ? d.monthlySalary : 29500;
+                            monthlySalaries.value = d.monthlySalaries || {};
+                            if (d.monthlySalary !== undefined && Object.keys(monthlySalaries.value).length === 0) {
+                                monthlySalaries.value[targetMonth.value] = d.monthlySalary;
+                            }
                             dependentsCount.value = d.dependentsCount || 0;
                             records.value = d.records || [];
                             historicalLeave.value = d.historicalLeave || { annual: 0, sick: 0, personal: 0 };
@@ -398,9 +412,9 @@
                     }
                 });
 
-                watch([monthlySalary, dependentsCount, records, historicalLeave, employmentStartDate], (newVals) => {
+                watch([monthlySalaries, dependentsCount, records, historicalLeave, employmentStartDate], (newVals) => {
                     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-                        monthlySalary: newVals[0], dependentsCount: newVals[1], records: newVals[2],
+                        monthlySalaries: newVals[0], dependentsCount: newVals[1], records: newVals[2],
                         historicalLeave: newVals[3], employmentStartDate: newVals[4]
                     }));
                 }, { deep: true });
@@ -533,17 +547,10 @@
                 const getTypeName = (t) => typeNameMap[t] || '未知';
                 const getTypeBadgeClass = (t) => t.startsWith('bonus') ? 'bg-yellow-100 text-yellow-700' : ({ 'annual':'bg-blue-100 text-blue-700', 'sick':'bg-amber-100 text-amber-700', 'personal':'bg-red-100 text-red-700', 'overtime':'bg-emerald-100 text-emerald-700' }[t] || 'bg-gray-100');
                 
-                watch(monthlySalary, () => {
-                    records.value = records.value.map(r => {
-                        if (r.type.startsWith('bonus')) return r; 
-                        const calcAmt = (t, h, w) => { if (t === 'annual') return 0; if (t === 'personal') return -Math.round(w * h); if (t === 'sick') return -Math.round((w / 2) * h); return Math.round(h <= 2 ? w * 1.34 * h : (w * 1.34 * 2) + (w * 1.67 * (h - 2))); };
-                        return { ...r, amount: calcAmt(r.type, r.hours, hourlyWage.value) };
-                    });
-                });
                 watch(currentPage, (p) => { if (p === 'report') unreadCount.value = 0; });
 
                 const exportData = () => {
-                    const dataToSave = { monthlySalary: monthlySalary.value, dependentsCount: dependentsCount.value, employmentStartDate: employmentStartDate.value, historicalLeave: historicalLeave.value, records: records.value };
+                    const dataToSave = { monthlySalaries: monthlySalaries.value, dependentsCount: dependentsCount.value, employmentStartDate: employmentStartDate.value, historicalLeave: historicalLeave.value, records: records.value };
                     const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: "application/json" });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a'); a.href = url; a.download = `HR紀錄_${new Date().toISOString().split('T')[0]}.json`;
@@ -557,7 +564,10 @@
                     reader.onload = (e) => {
                         try {
                             const d = JSON.parse(e.target.result);
-                            monthlySalary.value = d.monthlySalary !== undefined ? d.monthlySalary : 29500;
+                            monthlySalaries.value = d.monthlySalaries || {};
+                            if (d.monthlySalary !== undefined && Object.keys(monthlySalaries.value).length === 0) {
+                                monthlySalaries.value[targetMonth.value] = d.monthlySalary;
+                            }
                             dependentsCount.value = d.dependentsCount || 0;
                             employmentStartDate.value = d.employmentStartDate || '2023-08-07';
                             historicalLeave.value = d.historicalLeave || { annual: 0, sick: 0, personal: 0 };
@@ -574,8 +584,8 @@
                     if (!cloudToken.value) return showAlert('同步失敗', '請先輸入有效的 GitHub 金鑰 (Personal Access Token)');
                     isSyncing.value = true;
                     
-                    const dataToSave = {
-                        monthlySalary: monthlySalary.value,
+                   const dataToSave = {
+                        monthlySalaries: monthlySalaries.value,
                         dependentsCount: dependentsCount.value,
                         employmentStartDate: employmentStartDate.value,
                         historicalLeave: historicalLeave.value,
@@ -646,7 +656,10 @@
                             const d = JSON.parse(contentStr);
                             
                             // 安全寫入本機資料
-                            monthlySalary.value = d.monthlySalary !== undefined ? d.monthlySalary : 29500;
+                            monthlySalaries.value = d.monthlySalaries || {};
+                            if (d.monthlySalary !== undefined && Object.keys(monthlySalaries.value).length === 0) {
+                                monthlySalaries.value[targetMonth.value] = d.monthlySalary;
+                            }
                             dependentsCount.value = d.dependentsCount || 0;
                             employmentStartDate.value = d.employmentStartDate || '2023-08-07';
                             historicalLeave.value = d.historicalLeave || { annual: 0, sick: 0, personal: 0 };
