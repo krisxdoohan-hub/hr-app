@@ -157,7 +157,7 @@
                         </form>
                     </div>
                     
-                    <div class="text-center py-4 text-[10px] text-gray-300 font-bold uppercase tracking-widest">v8.3 終極隱私雲端版</div>
+                    <div class="text-center py-4 text-[10px] text-gray-300 font-bold uppercase tracking-widest">v8.4 智慧法規同步版</div>
                 </div>
 
                 <!-- ================= 第二頁：報表區 ================= -->
@@ -427,7 +427,16 @@
                 const showConfirm = (t, m, c) => modal.value = { isOpen: true, title: t, message: m, type: 'confirm', onConfirm: c };
                 const showAlert = (t, m) => modal.value = { isOpen: true, title: t, message: m, type: 'alert', onConfirm: null };
                 const handleModalConfirm = () => { if (modal.value.onConfirm) modal.value.onConfirm(); modal.value.isOpen = false; };
-                const resetHistoricalLeave = () => showConfirm('歸零確認', '確定將期初假時數全部重置為 0 嗎？', () => historicalLeave.value = { annual: 0, sick: 0, personal: 0 });
+                // v8.4 修正：僅重置曆年制的病事假，保留週年制的特休
+                const resetHistoricalLeave = () => showConfirm(
+                    '年度重置確認', 
+                    '現在是新的一年嗎？\n此動作將僅歸零「病假」與「事假」的期初時數，\n特休假將依到職日保留，不予變動。', 
+                    () => {
+                        historicalLeave.value.sick = 0;
+                        historicalLeave.value.personal = 0;
+                        showAlert('重置成功', '病假與事假已完成 1/1 曆年制歸零！');
+                    }
+                );
 
                 let pressTimer = null;
                 const startPress = (type) => {
@@ -481,9 +490,28 @@
                     else if (diffYears >= 10) days = Math.min(30, 15 + Math.floor(diffYears) - 9);
                     return days * 8;
                 });
+                // v8.4 修正：特休加入「週年制」時間過濾邏輯
                 const leaveUsed = computed(() => {
-                    const u = { annual: historicalLeave.value.annual, sick: historicalLeave.value.sick, personal: historicalLeave.value.personal };
-                    records.value.forEach(r => { if (u[r.type] !== undefined) u[r.type] += r.hours; });
+                    const u = { annual: 0, sick: historicalLeave.value.sick, personal: historicalLeave.value.personal };
+                    
+                    // 計算最近一次特休產生基準日 (判斷現在是在哪個週年年度)
+                    const now = new Date();
+                    const start = new Date(employmentStartDate.value);
+                    let baseDate = new Date(now.getFullYear(), start.getMonth(), start.getDate());
+                    if (baseDate > now) baseDate.setFullYear(baseDate.getFullYear() - 1);
+
+                    records.value.forEach(r => {
+                        const recDate = new Date(r.date);
+                        if (r.type === 'annual') {
+                            // 關鍵：特休僅計算基準日之後的紀錄，自動結清舊年度
+                            if (recDate >= baseDate) u.annual += r.hours;
+                        } else if (u[r.type] !== undefined) {
+                            u[r.type] += r.hours;
+                        }
+                    });
+                    
+                    // 加上手動填寫的期初特休
+                    u.annual += historicalLeave.value.annual;
                     return u;
                 });
                 const leaveLimits = computed(() => ({ annual: annualLeaveTotalHours.value, sick: 240, personal: 112 }));
