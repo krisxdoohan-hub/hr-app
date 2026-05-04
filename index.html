@@ -201,7 +201,7 @@
                         </form>
                     </div>
                     
-                    <div class="text-center py-4 text-[10px] text-gray-300 font-bold uppercase tracking-widest">v8.4.1 增修安全密碼版</div>
+                    <div class="text-center py-4 text-[10px] text-gray-300 font-bold uppercase tracking-widest">v8.4.2 增修安全密碼版</div>
                 </div>
 
                 <!-- ================= 第二頁：報表區 ================= -->
@@ -627,30 +627,46 @@
 
                 const addRecord = () => {
                     if (!formData.value.type) return showAlert('警告', '請選擇出勤類別');
+                    
+                    // 1. 修正跨月申報 Bug：根據「發生日期」抓取正確月份的底薪，避免用到報表當前觀看月份的薪資
+                    const recordMonth = formData.value.date.substring(0, 7);
+                    let recordSalary = monthlySalaries.value[recordMonth];
+                    if (recordSalary === undefined) {
+                        // 若該月未設定薪資，自動往回找最近一個月的底薪
+                        const pastMonths = Object.keys(monthlySalaries.value).filter(m => m < recordMonth).sort().reverse();
+                        recordSalary = pastMonths.length > 0 ? monthlySalaries.value[pastMonths[0]] : 29500;
+                    }
+                    const exactHourlyWage = Math.round(recordSalary / 240); // 取得當下時薪
+
+                    // 2. 精確的扣款與加班費計算
                     const calcAmt = (t, h, w) => {
                         if (t === 'annual') return 0;
                         if (t === 'personal') return -Math.round(w * h);
                         if (t === 'sick') return -Math.round((w / 2) * h);
-                        return Math.round(h <= 2 ? w * 1.34 * h : (w * 1.34 * 2) + (w * 1.67 * (h - 2)));
+                        
+                        // 勞基法標準倍率：4/3 (約 1.333) 與 5/3 (約 1.666)
+                        // 💡 若貴公司 HR 真的是用 1.34 與 1.67 算給您，請自行將 4/3 改為 1.34，5/3 改為 1.67
+                        const rate1 = 4 / 3; 
+                        const rate2 = 5 / 3;
+                        
+                        if (h <= 2) {
+                            return Math.round(w * rate1 * h);
+                        } else {
+                            return Math.round((w * rate1 * 2) + (w * rate2 * (h - 2)));
+                        }
                     };
-                    records.value.push({ id: Date.now(), date: formData.value.date, type: formData.value.type, hours: formData.value.hours, amount: calcAmt(formData.value.type, formData.value.hours, hourlyWage.value) });
-                    unreadCount.value++; formData.value = { date: new Date().toISOString().split('T')[0], type: '', hours: 1 };
-                };
-                
-                const addBonusRecord = () => {
-                    if (!bonusData.value.type) return showAlert('警告', '請選擇獎金名目');
-                    if (!bonusData.value.amount || bonusData.value.amount <= 0) return showAlert('警告', '請輸入有效金額');
-                    
+
+                    // 將計算完的正確金額寫入資料庫
                     records.value.push({ 
                         id: Date.now(), 
-                        date: bonusData.value.date, 
-                        type: bonusData.value.type, 
-                        hours: 0, 
-                        amount: bonusData.value.amount 
+                        date: formData.value.date, 
+                        type: formData.value.type, 
+                        hours: formData.value.hours, 
+                        amount: calcAmt(formData.value.type, formData.value.hours, exactHourlyWage) 
                     });
                     
                     unreadCount.value++; 
-                    bonusData.value = { date: new Date().toISOString().split('T')[0], type: '', amount: null };
+                    formData.value = { date: new Date().toISOString().split('T')[0], type: '', hours: 1 };
                 };
 
                 const removeRecord = (id) => {
@@ -676,6 +692,37 @@
                 const getTypeName = (t) => typeNameMap[t] || '未知';
                 const getTypeBadgeClass = (t) => t.startsWith('bonus') ? 'bg-yellow-100 text-yellow-700' : ({ 'annual':'bg-blue-100 text-blue-700', 'sick':'bg-amber-100 text-amber-700', 'personal':'bg-red-100 text-red-700', 'overtime':'bg-emerald-100 text-emerald-700' }[t] || 'bg-gray-100');
                 
+                // 【新增區塊】：監聽各月薪資變動，並自動「精準重算」對應月份的紀錄
+                watch(monthlySalaries, (newSalaries) => {
+                    records.value = records.value.map(r => {
+                        // 獎金與特休的金額是固定的，不需要重算
+                        if (r.type.startsWith('bonus') || r.type === 'annual') return r; 
+                        
+                        // 找出這筆紀錄所屬月份的正確底薪
+                        const recMonth = r.date.substring(0, 7);
+                        let s = newSalaries[recMonth];
+                        if (s === undefined) {
+                            const past = Object.keys(newSalaries).filter(m => m < recMonth).sort().reverse();
+                            s = past.length > 0 ? newSalaries[past[0]] : 29500;
+                        }
+                        
+                        // 計算精確時薪
+                        const exactHourlyWage = Math.round(s / 240);
+                        
+                        // 重新套用勞基法標準倍率計算
+                        const calcAmt = (t, h, w) => {
+                            if (t === 'personal') return -Math.round(w * h);
+                            if (t === 'sick') return -Math.round((w / 2) * h);
+                            const rate1 = 4 / 3; 
+                            const rate2 = 5 / 3;
+                            return Math.round(h <= 2 ? (w * rate1 * h) : (w * rate1 * 2) + (w * rate2 * (h - 2)));
+                        };
+                        
+                        // 覆寫更新該筆紀錄的金額
+                        return { ...r, amount: calcAmt(r.type, r.hours, exactHourlyWage) };
+                    });
+                }, { deep: true });
+
                 watch(currentPage, (p) => { if (p === 'report') unreadCount.value = 0; });
 
                 const exportData = () => {
