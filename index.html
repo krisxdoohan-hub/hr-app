@@ -669,6 +669,24 @@
                     formData.value = { date: new Date().toISOString().split('T')[0], type: '', hours: 1 };
                 };
 
+                // 👇👇👇 請把這整塊遺失的積木貼回這裡 👇👇👇
+                const addBonusRecord = () => {
+                    if (!bonusData.value.type) return showAlert('警告', '請選擇獎金名目');
+                    if (!bonusData.value.amount || bonusData.value.amount <= 0) return showAlert('警告', '請輸入有效金額');
+                    
+                    records.value.push({ 
+                        id: Date.now(), 
+                        date: bonusData.value.date, 
+                        type: bonusData.value.type, 
+                        hours: 0, 
+                        amount: bonusData.value.amount 
+                    });
+                    
+                    unreadCount.value++; 
+                    bonusData.value = { date: new Date().toISOString().split('T')[0], type: '', amount: null };
+                };
+                // 👆👆👆 遺失的積木結束 👆👆👆
+
                 const removeRecord = (id) => {
                     showConfirm('刪除確認', '確定移除此筆紀錄？', () => {
                         records.value = records.value.filter(r => r.id !== id);
