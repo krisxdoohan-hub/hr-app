@@ -250,8 +250,8 @@
                                 <option value="personal">僅事假</option><option value="overtime">僅加班</option>
                                 <option value="bonus">僅獎金</option>
                             </select>
-                            <span class="text-[9px] text-gray-400 font-bold md:hidden"><i class="fa-solid fa-arrow-left mr-1"></i>左滑刪除</span>
-                            <span class="text-[9px] text-gray-400 font-bold hidden md:inline"><i class="fa-solid fa-trash-can mr-1"></i>點擊右側圖示刪除</span>
+                            <span class="text-[9px] text-gray-400 font-bold md:hidden"><i class="fa-solid fa-arrow-left mr-1"></i>左滑修改/刪除</span>
+                            <span class="text-[9px] text-gray-400 font-bold hidden md:inline"><i class="fa-solid fa-pen-to-square mr-1"></i>點擊右側圖示修改/刪除</span>
                         </div>
                         <div v-if="filteredAndSortedRecords.length === 0" class="p-12 text-center text-gray-300 italic text-sm font-bold">無紀錄</div>
                         <div v-else class="flex flex-col">
@@ -627,12 +627,14 @@
                     const diff = e.touches[0].clientX - startX;
                     let newX = currentX + diff;
                     if (newX > 0) newX = 0; 
-                    if (newX < -90) newX = -90; 
+                    // 放寬滑動極限，允許手指往左滑動更遠
+                    if (newX < -140) newX = -140; 
                     swipeState.value[id] = newX;
                 };
                 const touchEnd = (id) => {
                     if (swipeState.value[id] < -45) {
-                        swipeState.value[id] = -80; 
+                        // 煞車點改為 -128px (對應 w-32 的寬度)，讓兩顆按鈕完整露出
+                        swipeState.value[id] = -128; 
                     } else {
                         swipeState.value[id] = 0; 
                     }
