@@ -201,7 +201,7 @@
                         </form>
                     </div>
                     
-                    <div class="text-center py-4 text-[10px] text-gray-300 font-bold uppercase tracking-widest">v8.4.2 增修安全密碼版</div>
+                    <div class="text-center py-4 text-[10px] text-gray-300 font-bold uppercase tracking-widest">v8.4.3 明細編輯與安全鎖定版</div>
                 </div>
 
                 <!-- ================= 第二頁：報表區 ================= -->
@@ -256,8 +256,11 @@
                         <div v-if="filteredAndSortedRecords.length === 0" class="p-12 text-center text-gray-300 italic text-sm font-bold">無紀錄</div>
                         <div v-else class="flex flex-col">
                             <div v-for="r in filteredAndSortedRecords" :key="r.id" class="relative border-b border-gray-50 overflow-hidden bg-red-50">
-                                <div class="absolute right-0 top-0 bottom-0 w-20 flex items-center justify-center">
-                                    <button @click.stop="removeRecord(r.id)" class="w-full h-full text-red-500 font-bold flex flex-col items-center justify-center active:bg-red-100 transition">
+                                <div class="absolute right-0 top-0 bottom-0 w-32 flex items-center justify-center">
+                                    <button @click.stop="openEditModal(r)" class="w-full h-full text-blue-500 font-bold flex flex-col items-center justify-center active:bg-blue-50 transition border-r border-gray-100/50">
+                                        <i class="fa-solid fa-pen-to-square text-lg mb-1"></i><span class="text-[10px]">修改</span>
+                                    </button>
+                                    <button @click.stop="removeRecord(r.id)" class="w-full h-full text-red-500 font-bold flex flex-col items-center justify-center active:bg-red-50 transition">
                                         <i class="fa-solid fa-trash-can text-lg mb-1"></i><span class="text-[10px]">刪除</span>
                                     </button>
                                 </div>
@@ -279,7 +282,10 @@
                                         <div class="font-black text-sm" :class="r.amount > 0 ? 'text-emerald-500' : (r.amount < 0 ? 'text-red-500' : 'text-gray-400')">
                                             {{ isAmountMasked ? '***' : (r.amount > 0 ? '+' : '') + (r.amount === 0 ? '無扣款' : r.amount.toLocaleString()) }}
                                         </div>
-                                        <button @click.stop="removeRecord(r.id)" class="hidden md:flex ml-4 text-gray-300 hover:text-red-500 transition-colors items-center justify-center w-8 h-8 rounded-full hover:bg-red-50" title="刪除此紀錄">
+                                        <button @click.stop="openEditModal(r)" class="hidden md:flex ml-3 text-gray-300 hover:text-blue-500 transition-colors items-center justify-center w-8 h-8 rounded-full hover:bg-blue-50" title="修改此紀錄">
+                                            <i class="fa-solid fa-pen-to-square text-lg"></i>
+                                        </button>
+                                        <button @click.stop="removeRecord(r.id)" class="hidden md:flex ml-1 text-gray-300 hover:text-red-500 transition-colors items-center justify-center w-8 h-8 rounded-full hover:bg-red-50" title="刪除此紀錄">
                                             <i class="fa-solid fa-trash-can text-lg"></i>
                                         </button>
                                     </div>
@@ -349,6 +355,54 @@
             </transition>
 
             <!-- 彈窗 -->
+            
+            <transition name="fade">
+                <div v-if="isEditModalOpen" class="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 backdrop-blur-sm px-6">
+                    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
+                        <div class="p-6">
+                            <h3 class="text-lg font-black text-gray-800 mb-4 border-b pb-2 flex items-center">
+                                <i class="fa-solid fa-pen-to-square text-blue-500 mr-2"></i>修改申報紀錄
+                            </h3>
+                            <div class="space-y-4 text-left">
+                                <div>
+                                    <label class="text-[10px] font-bold text-gray-400 mb-1 block">日期</label>
+                                    <input type="date" v-model="editFormData.date" class="w-full px-3 py-2 border rounded-lg text-sm font-bold">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold text-gray-400 mb-1 block">類別</label>
+                                    <select v-model="editFormData.type" class="w-full px-3 py-2 border rounded-lg bg-white text-sm font-bold">
+                                        <optgroup label="請假/加班">
+                                            <option value="annual">🌴 特休</option>
+                                            <option value="sick">💊 病假</option>
+                                            <option value="personal">⚠️ 事假</option>
+                                            <option value="overtime">⏱️ 平日加班</option>
+                                        </optgroup>
+                                        <optgroup label="獎金收入">
+                                            <option value="bonus_festival">🎁 三節獎金</option>
+                                            <option value="bonus_incentive">🚀 激勵獎金</option>
+                                            <option value="bonus_yearend">🧧 年終獎金</option>
+                                            <option value="bonus_birthday">🎂 生日禮金</option>
+                                        </optgroup>
+                                    </select>
+                                </div>
+                                <div v-if="!editFormData.type.startsWith('bonus')">
+                                    <label class="text-[10px] font-bold text-gray-400 mb-1 block">時數</label>
+                                    <input type="number" v-model.number="editFormData.hours" step="0.5" class="w-full px-3 py-2 border rounded-lg text-sm font-bold">
+                                </div>
+                                <div v-if="editFormData.type.startsWith('bonus')">
+                                    <label class="text-[10px] font-bold text-gray-400 mb-1 block">金額 (NT$)</label>
+                                    <input type="number" v-model.number="editFormData.amount" class="w-full px-3 py-2 border rounded-lg text-sm font-bold">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex border-t border-gray-100">
+                            <button @click="isEditModalOpen = false" class="flex-1 py-4 text-sm font-bold text-gray-400 border-r active:bg-gray-50">取消</button>
+                            <button @click="saveEdit" class="flex-1 py-4 text-sm font-black text-blue-500 active:bg-blue-50">儲存修改</button>
+                        </div>
+                    </div>
+                </div>
+            </transition>
+
             <transition name="fade">
                 <div v-if="modal.isOpen" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm px-6 text-center">
                     <div class="bg-white rounded-3xl shadow-2xl w-full max-w-xs overflow-hidden">
@@ -400,6 +454,10 @@
                 const bonusData = ref({ date: new Date().toISOString().split('T')[0], type: '', amount: null }); 
                 const modal = ref({ isOpen: false, title: '', message: '', type: 'alert', onConfirm: null });
                 const swipeState = ref({}); 
+
+                // --- 新增：編輯功能專用變數 ---
+                const isEditModalOpen = ref(false);
+                const editFormData = ref({ id: null, date: '', type: '', hours: 0, amount: 0 });
                 
                 // v8.2 隱私遮蔽狀態 (薪資與金額)
                 const isAmountMasked = ref(false);
@@ -687,6 +745,49 @@
                 };
                 // 👆👆👆 遺失的積木結束 👆👆👆
 
+                // --- 新增：開啟編輯彈窗並載入資料 ---
+                const openEditModal = (record) => {
+                    editFormData.value = { ...record };
+                    isEditModalOpen.value = true;
+                    Object.keys(swipeState.value).forEach(k => swipeState.value[k] = 0);
+                };
+
+                // --- 新增：執行儲存修改 (包含浮動重算) ---
+                const saveEdit = () => {
+                    if (!editFormData.value.type) return showAlert('警告', '請選擇類別');
+                    
+                    const recordMonth = editFormData.value.date.substring(0, 7);
+                    let recordSalary = monthlySalaries.value[recordMonth];
+                    if (recordSalary === undefined) {
+                        const pastMonths = Object.keys(monthlySalaries.value).filter(m => m < recordMonth).sort().reverse();
+                        recordSalary = pastMonths.length > 0 ? monthlySalaries.value[pastMonths[0]] : 29500;
+                    }
+                    const w = Math.round(recordSalary / 240);
+                    const h = editFormData.value.hours;
+                    const t = editFormData.value.type;
+
+                    let finalAmt = 0;
+                    if (t.startsWith('bonus')) {
+                        finalAmt = editFormData.value.amount;
+                    } else if (t === 'annual') {
+                        finalAmt = 0;
+                    } else if (t === 'personal') {
+                        finalAmt = -Math.round(w * h);
+                    } else if (t === 'sick') {
+                        finalAmt = -Math.round((w / 2) * h);
+                    } else if (t === 'overtime') {
+                        const r1 = 4 / 3; const r2 = 5 / 3;
+                        finalAmt = h <= 2 ? Math.round(w * r1 * h) : Math.round((w * r1 * 2) + (w * r2 * (h - 2)));
+                    }
+
+                    const index = records.value.findIndex(r => r.id === editFormData.value.id);
+                    if (index !== -1) {
+                        records.value[index] = { ...editFormData.value, amount: finalAmt };
+                        isEditModalOpen.value = false;
+                        showAlert('成功', '紀錄已成功更新並重新結算金額');
+                    }
+                };
+
                 const removeRecord = (id) => {
                     showConfirm('刪除確認', '確定移除此筆紀錄？', () => {
                         records.value = records.value.filter(r => r.id !== id);
@@ -878,7 +979,8 @@
                     cloudToken, cloudGistId, isSyncing, uploadToCloud, downloadFromCloud,
                     isAmountMasked, // v8.2 導出隱私遮蔽狀態
                     isCloudMasked, // v8.3 導出雲端憑證遮蔽狀態
-                    passcodeLength, isAppLocked, inputPasscode, passcodeRefs, passcodeError, handlePasscodeInput, handlePasscodeDelete, newPasscode, updatePasscode // 新增鎖定解鎖與設定變數
+                    passcodeLength, isAppLocked, inputPasscode, passcodeRefs, passcodeError, handlePasscodeInput, handlePasscodeDelete, newPasscode, updatePasscode, // 新增鎖定解鎖與設定變數
+                    openEditModal, saveEdit, isEditModalOpen, editFormData // v8.5 新增編輯功能
                 };
             }
         }).mount('#app');
