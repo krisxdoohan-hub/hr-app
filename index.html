@@ -201,14 +201,28 @@
                         </form>
                     </div>
                     
-                    <div class="text-center py-4 text-[10px] text-gray-300 font-bold uppercase tracking-widest">v8.4.4 明細編輯與安全鎖定版</div>
+                    <div class="text-center py-4 text-[10px] text-gray-300 font-bold uppercase tracking-widest">v8.4.5 月份導覽美化版</div>
                 </div>
 
                 <!-- ================= 第二頁：報表區 ================= -->
                 <div v-else key="report" class="space-y-5">
                     <div class="bg-white rounded-2xl border p-4 flex justify-between items-center shadow-sm">
-                        <div class="flex items-center text-sm font-bold text-gray-600"><i class="fa-solid fa-calendar-check mr-2 text-indigo-500"></i>薪資結算月份</div>
-                        <input type="month" v-model="targetMonth" class="border rounded-lg px-3 py-1 text-indigo-700 font-bold outline-none">
+                        <div class="flex items-center text-sm font-bold text-gray-600">
+                            <i class="fa-solid fa-calendar-check mr-2 text-indigo-500"></i>月份切換
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button @click="changeMonth(-1)" class="w-10 h-10 flex items-center justify-center rounded-full border border-gray-100 hover:bg-gray-50 active:scale-90 transition-all">
+                                <i class="fa-solid fa-chevron-left text-gray-400"></i>
+                            </button>
+                            <div class="text-center min-w-[80px]">
+                                <div class="text-[10px] text-gray-400 font-bold leading-none mb-1">{{ targetMonth.split('-')[0] }}</div>
+                                <div class="text-xl font-black text-indigo-700 leading-none">{{ Number(targetMonth.split('-')[1]) }}月</div>
+                                <button @click="goCurrentMonth" class="mt-1 text-[9px] font-bold text-indigo-400 bg-indigo-50 px-2 py-0.5 rounded-full hover:bg-indigo-100">回到本月</button>
+                            </div>
+                            <button @click="changeMonth(1)" class="w-10 h-10 flex items-center justify-center rounded-full border border-gray-100 hover:bg-gray-50 active:scale-90 transition-all">
+                                <i class="fa-solid fa-chevron-right text-gray-400"></i>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
@@ -448,6 +462,19 @@
                 const unreadCount = ref(0);
                 const filterType = ref('all');
                 const targetMonth = ref(new Date().toISOString().slice(0, 7));
+                
+                // v8.4.5 新增：月份導覽邏輯 (具備跨年自動換算)
+                const goCurrentMonth = () => {
+                    targetMonth.value = new Date().toISOString().slice(0, 7);
+                };
+                const changeMonth = (delta) => {
+                    const [year, month] = targetMonth.value.split('-').map(Number);
+                    const newDate = new Date(year, (month - 1) + delta, 1);
+                    const y = newDate.getFullYear();
+                    const m = String(newDate.getMonth() + 1).padStart(2, '0');
+                    targetMonth.value = `${y}-${m}`;
+                };
+
                 const employmentStartDate = ref('2023-08-07');
                 const historicalLeave = ref({ annual: 0, sick: 0, personal: 0 });
                 const formData = ref({ date: new Date().toISOString().split('T')[0], type: '', hours: 1 });
@@ -981,8 +1008,9 @@
                     cloudToken, cloudGistId, isSyncing, uploadToCloud, downloadFromCloud,
                     isAmountMasked, // v8.2 導出隱私遮蔽狀態
                     isCloudMasked, // v8.3 導出雲端憑證遮蔽狀態
-                    passcodeLength, isAppLocked, inputPasscode, passcodeRefs, passcodeError, handlePasscodeInput, handlePasscodeDelete, newPasscode, updatePasscode, // 新增鎖定解鎖與設定變數
-                    openEditModal, saveEdit, isEditModalOpen, editFormData // v8.5 新增編輯功能
+                    passcodeLength, isAppLocked, inputPasscode, passcodeRefs, passcodeError, handlePasscodeInput, handlePasscodeDelete, newPasscode, updatePasscode, 
+                    openEditModal, saveEdit, isEditModalOpen, editFormData,
+                    goCurrentMonth, changeMonth // v8.4.5 導出月份導覽函式
                 };
             }
         }).mount('#app');
