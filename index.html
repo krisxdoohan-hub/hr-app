@@ -2,1018 +2,1065 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HR出勤紀錄</title>
-    <!-- 引入 PWA 描述檔 -->
-    <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#4338ca">
-    
-    <!-- CDN 資源 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#D35400">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="HR系統">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="manifest" href='data:application/manifest+json;utf-8,{"name":"HR 出勤系統","short_name":"HR系統","start_url":".","display":"standalone","background_color":"#FDF2E9","theme_color":"#D35400","icons":[{"src":"icon-192.png","sizes":"192x192","type":"image/png"},{"src":"icon-512.png","sizes":"512x512","type":"image/png"}]}'>
+    <title>HR 出勤系統</title>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                const swCode = "self.addEventListener('install', e => e.waitUntil(self.skipWaiting())); self.addEventListener('activate', e => e.waitUntil(self.clients.claim())); self.addEventListener('fetch', e => { e.respondWith(fetch(e.request).catch(() => new Response('Offline'))); });";
+                const blob = new Blob([swCode], { type: 'application/javascript' });
+                navigator.serviceWorker.register(URL.createObjectURL(blob));
+            });
+        }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest"></script>
     <style>
-        body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: #f8fafc; overscroll-behavior-y: none; }
-        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
-        .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(10px); }
-        ::-webkit-scrollbar { display: none; }
-        .no-select { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+        /* UI/UX Pro Max - Global Design Protocol */
+        :root {
+            --primary: #D35400;
+            --secondary: #E67E22;
+            --surface: #FDF2E9;
+            --text-main: #333333;
+        }
+        body {
+            line-height: 1.5;
+            background-color: var(--surface);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            overscroll-behavior-y: none;
+        }
+        
+        .btn-primary-action {
+            background-color: var(--primary);
+            color: white;
+            transition: all 0.2s ease-in-out;
+        }
+        .btn-primary-action:hover { background-color: var(--secondary); }
+        .btn-primary-action:active { transform: scale(0.96); }
+        .btn-primary-action:disabled { background-color: #D1D5DB; cursor: not-allowed; transform: none; }
+
+        .btn-outline-action {
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            transition: all 0.2s;
+        }
+        .btn-outline-action:hover { background-color: var(--surface); }
+        .btn-outline-action:active { transform: scale(0.96); }
+
+        .input-error-state { border: 2px solid #EF4444 !important; }
+        .error-hint { color: #EF4444; font-size: 0.875rem; margin-top: 4px; }
+
+        .card-data-container {
+            background-color: #FFFFFF;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            padding: 24px;
+        }
+
+        .sidebar-item-active { background-color: var(--primary); color: white; border-radius: 8px; }
+        .sidebar-item { color: #9CA3AF; transition: all 0.2s; border-radius: 8px; }
+        .sidebar-item:hover { background-color: rgba(211, 84, 0, 0.1); color: var(--primary); }
+
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
-    <div id="app" class="min-h-screen pb-20">
-        <!-- ================= APP鎖定畫面 ================= -->
-        <transition name="fade">
-            <div v-if="isAppLocked" class="fixed inset-0 z-[200] bg-slate-900 flex flex-col items-center justify-center px-6">
-                <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-xs text-center relative overflow-hidden">
-                    <div class="absolute top-0 left-0 w-full h-2 bg-indigo-500"></div>
-                    <i class="fa-solid fa-lock text-5xl text-indigo-500 mb-4"></i>
-                    <h2 class="text-xl font-black text-gray-800 mb-2">系統已鎖定</h2>
-                    <p class="text-xs text-gray-500 font-bold mb-6">請輸入密碼以進入應用程式</p>
-                    
-                    <div class="flex justify-center gap-2 mb-6" dir="ltr">
-                        <input v-for="(digit, index) in passcodeLength" :key="index"
-                               type="password" inputmode="numeric" maxlength="1"
-                               :ref="el => passcodeRefs[index] = el"
-                               v-model="inputPasscode[index]"
-                               @input="handlePasscodeInput(index)"
-                               @keydown.delete="handlePasscodeDelete(index, $event)"
-                               class="w-10 h-12 text-center text-xl font-black border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+        const STORAGE_KEY = 'HR_APP_DATA_V10_FUSION';
+
+        // ----------------------------------------------------
+        // 安全鎖定畫面模組
+        // ----------------------------------------------------
+        const LockScreen = ({ onUnlock, error, passcodeLength = 6 }) => {
+            const [passcode, setPasscode] = useState('');
+            const handleChange = (e) => setPasscode(e.target.value.replace(/[^0-9]/g, ''));
+            const handleSubmit = (e) => { e.preventDefault(); onUnlock(passcode); };
+
+            return (
+                <div className="fixed inset-0 z-[200] bg-slate-900 flex flex-col items-center justify-center px-6">
+                    <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-xs text-center relative overflow-hidden fade-in">
+                        <div className="absolute top-0 left-0 w-full h-2 bg-[var(--primary)]"></div>
+                        <div className="flex justify-center mb-4 text-[var(--primary)]"><i data-lucide="lock" className="w-12 h-12"></i></div>
+                        <h2 className="text-xl font-black text-gray-800 mb-2">系統已鎖定</h2>
+                        <p className="text-xs text-gray-500 font-bold mb-6">預設密碼為 123456</p>
+                        <form onSubmit={handleSubmit}>
+                            <input type="password" value={passcode} onChange={handleChange} maxLength={passcodeLength} placeholder="******"
+                                className={`w-full text-center text-2xl tracking-[0.5em] font-black border-2 rounded-xl py-3 focus:outline-none transition-all ${error ? 'input-error-state bg-red-50' : 'border-gray-200 focus:border-[var(--primary)]'}`} />
+                            {error && <p className="error-hint animate-pulse mt-2">{error}</p>}
+                            <button type="submit" className="mt-6 w-full btn-primary-action py-3 rounded-xl font-bold flex items-center justify-center gap-2">
+                                <i data-lucide="key" className="w-4 h-4"></i> 解鎖進入
+                            </button>
+                        </form>
                     </div>
-                    <p v-if="passcodeError" class="text-xs text-red-500 font-bold mb-4 animate-pulse">{{ passcodeError }}</p>
                 </div>
-                <div class="mt-6 text-indigo-400 opacity-50 text-[10px] font-bold tracking-widest text-center">
-                    <p><i class="fa-solid fa-shield-halved mr-1"></i>SECURE LOGIN</p>
+            );
+        };
+
+        // ----------------------------------------------------
+        // 共用 UI 元件
+        // ----------------------------------------------------
+        const StatCard = ({ icon, title, value, subtext, highlight, bgColor, iconColor }) => (
+            <div className="card-data-container flex items-center gap-6">
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center ${bgColor} ${iconColor}`}>
+                    <i data-lucide={icon} className="w-8 h-8"></i>
+                </div>
+                <div>
+                    <div className="text-gray-500 text-sm font-medium mb-1">{title}</div>
+                    <div className="text-3xl font-bold text-gray-800 mb-1">{value}</div>
+                    <div className="text-sm text-gray-400 flex items-center gap-1">
+                        {subtext} {highlight && <span className={highlight.includes('↑') ? "text-green-500" : ""}>{highlight}</span>}
+                    </div>
                 </div>
             </div>
-        </transition>
+        );
 
-        <!-- 主要內容區塊 (解鎖後顯示) -->
-        <div v-show="!isAppLocked">
-        <!-- 頂部導覽列 -->
-        <nav class="bg-indigo-700 text-white shadow-lg sticky top-0 z-50">
-            <div class="max-w-5xl mx-auto px-4 h-16 flex justify-between items-center">
-                <div class="flex items-center gap-2">
-                    <i class="fa-solid fa-calculator text-xl text-indigo-200"></i>
-                    <span class="font-bold text-lg">HR出勤紀錄</span>
-                    <span v-if="isOfflineReady" class="bg-emerald-500 text-[10px] px-2 py-0.5 rounded-full animate-pulse flex items-center shadow-sm ml-1">
-                        <i class="fa-solid fa-cloud-arrow-down mr-1"></i>系統就緒
-                    </span>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <!-- 全域隱私開關 (導覽列) -->
-                    <button @click="isAmountMasked = !isAmountMasked" class="px-3 py-1.5 rounded-lg text-lg hover:bg-indigo-600 transition-all text-indigo-200" title="隱藏/顯示金額">
-                        <i class="fa-solid" :class="isAmountMasked ? 'fa-eye-slash' : 'fa-eye'"></i>
-                    </button>
-                    <button @click="currentPage = 'input'" :class="currentPage === 'input' ? 'bg-indigo-900 ring-1 ring-indigo-300' : 'hover:bg-indigo-600'" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all">輸入區</button>
-                    <button @click="currentPage = 'report'" :class="currentPage === 'report' ? 'bg-indigo-900 ring-1 ring-indigo-300' : 'hover:bg-indigo-600'" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all relative">
-                        報表區 <span v-if="unreadCount > 0" class="absolute -top-1 -right-1 h-3 w-3 bg-pink-500 rounded-full border border-white"></span>
-                    </button>
-                </div>
-            </div>
-        </nav>
+        // ----------------------------------------------------
+        // 主應用程式
+        // ----------------------------------------------------
+        const App = () => {
+            const [isLocked, setIsLocked] = useState(true);
+            const [lockError, setLockError] = useState('');
+            const [currentView, setCurrentView] = useState('dashboard');
+            const [isLoading, setIsLoading] = useState(false);
+            const [isAmountMasked, setIsAmountMasked] = useState(false);
+            const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7));
+            
+            // 新增：請假申報狀態與長按互動狀態
+            const [leaveForm, setLeaveForm] = useState({ date: new Date().toISOString().split('T')[0], type: 'annual', hours: 8 });
+            const [showBrackets, setShowBrackets] = useState(false);
+            const pressTimer = useRef(null);
 
-        <main class="max-w-5xl mx-auto px-4 mt-5">
-            <transition name="fade" mode="out-in">
-                <!-- ================= 第一頁：輸入區 ================= -->
-                <div v-if="currentPage === 'input'" key="input" class="space-y-5">
-                    <div class="bg-white rounded-2xl shadow-sm border p-5">
-                        <h2 class="font-bold text-gray-800 text-sm border-b pb-2 mb-4 flex items-center"><i class="fa-solid fa-user-shield text-indigo-500 mr-2"></i>基本資料設定</h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="text-xs font-bold text-gray-400 mb-1 flex items-center justify-between">
-                                    <span>每月基本薪資 (若無則填0)</span>
-                                    <!-- 隱私開關 (薪資欄位旁) -->
-                                    <button type="button" @click="isAmountMasked = !isAmountMasked" class="text-indigo-400 hover:text-indigo-600 transition-colors" title="切換隱私顯示">
-                                        <i class="fa-solid" :class="isAmountMasked ? 'fa-eye-slash' : 'fa-eye'"></i>
-                                    </button>
-                                </label>
-                                <!-- 動態切換 type 以遮蔽輸入 -->
-                                <input :type="isAmountMasked ? 'password' : 'number'" v-model.number="monthlySalary" min="0" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 font-bold text-gray-700 placeholder-gray-300">
+            const handlePressStart = () => { pressTimer.current = setTimeout(() => setShowBrackets(true), 800); };
+            const handlePressEnd = () => { if (pressTimer.current) clearTimeout(pressTimer.current); setShowBrackets(false); };
+            
+            // 資料模型 (整合舊版結構)
+            const [data, setData] = useState(() => {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                return saved ? JSON.parse(saved) : {
+                    passcode: '123456',
+                    gasUrl: '',
+                    monthlySalaries: {},
+                    dependentsCount: 0,
+                    employmentStartDate: '2023-08-07',
+                    historicalLeave: { annual: 0, sick: 0, personal: 0 },
+                    records: [],
+                    holidays: {}
+                };
+            })
+
+            // 確保 Lucide 圖示在每次渲染後都能正確顯示
+            useEffect(() => {
+                if (window.lucide) window.lucide.createIcons();
+            });
+
+            useEffect(() => {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            }, [data]);
+
+            // 雲端同步邏輯 (GAS)
+            const syncToCloud = async (newData, showLoading = false) => {
+                setData(newData); 
+                if (!newData.gasUrl) return; 
+                if (showLoading) setIsLoading(true);
+                try {
+                    await fetch(newData.gasUrl, { method: 'POST', body: JSON.stringify(newData) });
+                } catch (err) { console.error('雲端儲存失敗', err); }
+                if (showLoading) setIsLoading(false);
+            };
+
+            const fetchFromCloud = async () => {
+                if (!data.gasUrl) return alert('請先至「員工管理」設定 GAS 雲端網址');
+                setIsLoading(true);
+                try {
+                    const res = await fetch(data.gasUrl);
+                    const cloudData = await res.json();
+                    if (Object.keys(cloudData).length > 0) {
+                        setData(cloudData);
+                        alert('成功從雲端同步資料！');
+                    }
+                } catch (err) { alert('讀取失敗，請確認 GAS 網址與網路連線。'); }
+                setIsLoading(false);
+            };
+
+            // 新增：自動檢查與補齊本月打卡紀錄
+            useEffect(() => {
+                if (isLocked) return;
+                
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = now.getMonth();
+                const today = now.getDate();
+                let hasChanges = false;
+                let newRecords = [...data.records];
+
+                for (let day = 1; day <= today; day++) {
+                    const d = new Date(year, month, day);
+                    const dayOfWeek = d.getDay();
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    
+                    // 判斷邏輯：預設平日上班，若行事曆中有定義則依照行事曆 (isholiday="否" 代表要上班)
+                    let shouldWork = (dayOfWeek >= 1 && dayOfWeek <= 5);
+                    if (data.holidays && data.holidays[dateStr] !== undefined) {
+                        shouldWork = !data.holidays[dateStr]; 
+                    }
+                    
+                    if (shouldWork) { 
+                        const hasPunchIn = newRecords.some(r => r.date === dateStr && r.type === 'punch_in');
+                        const hasPunchOut = newRecords.some(r => r.date === dateStr && r.type === 'punch_out');
+
+                        const punchInLimit = new Date(year, month, day, 8, 59).getTime();
+                        if (!hasPunchIn && now.getTime() > punchInLimit) {
+                            const min = 55 + Math.floor(Math.random() * 5); 
+                            newRecords.push({ id: Date.now() + Math.random(), date: dateStr, type: 'punch_in', time: `08:${min}`, hours: 0, amount: 0 });
+                            hasChanges = true;
+                        }
+
+                        const otRecord = newRecords.find(r => r.date === dateStr && r.type === 'overtime');
+
+                        if (!hasPunchOut) {
+                            if (otRecord) {
+                                // 若有申報加班，下班時間依據加班時數累加 (18:00 + 加班時數)
+                                const targetHour = 18 + Math.floor(otRecord.hours);
+                                const targetMin = (otRecord.hours % 1) * 60;
+                                const otPunchOutLimit = new Date(year, month, day, targetHour, targetMin + 3).getTime();
+                                
+                                if (now.getTime() > otPunchOutLimit) {
+                                    let finalMin = targetMin + 1 + Math.floor(Math.random() * 3);
+                                    let finalHour = targetHour;
+                                    if (finalMin >= 60) { finalHour += 1; finalMin -= 60; }
+                                    const timeStr = `${String(finalHour).padStart(2, '0')}:${String(finalMin).padStart(2, '0')}`;
+                                    newRecords.push({ id: Date.now() + Math.random(), date: dateStr, type: 'punch_out', time: timeStr, hours: 0, amount: 0 });
+                                    hasChanges = true;
+                                }
+                            } else {
+                                // 若無申報加班，過了晚上 11:55 分自動視為無加班並補 18:00 左右的正常下班卡
+                                const defaultCutoffTime = new Date(year, month, day, 23, 55).getTime();
+                                if (now.getTime() > defaultCutoffTime) {
+                                    const min = 1 + Math.floor(Math.random() * 3); 
+                                    newRecords.push({ id: Date.now() + Math.random(), date: dateStr, type: 'punch_out', time: `18:0${min}`, hours: 0, amount: 0 });
+                                    hasChanges = true;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (hasChanges) {
+                    syncToCloud({ ...data, records: newRecords }, false);
+                }
+            }, [isLocked, data]);
+
+            // 新增：手動打卡處理邏輯
+            const handleManualPunch = (type) => {
+                const now = new Date();
+                const date = now.toISOString().split('T')[0];
+                const time = now.toTimeString().slice(0, 5);
+                
+                if (data.records.some(r => r.date === date && r.type === type)) {
+                    alert(type === 'punch_in' ? '今日已打過上班卡！' : '今日已打過下班卡！');
+                    return;
+                }
+                syncToCloud({ ...data, records: [{ id: Date.now(), date, type, time, hours: 0, amount: 0 }, ...data.records] }, true);
+                alert(`${type === 'punch_in' ? '上班' : '下班'}打卡成功！時間：${time}`);
+            };
+
+            const handleUnlock = (input) => {
+                if (input === data.passcode) { setIsLocked(false); setLockError(''); } 
+                else { setLockError('密碼錯誤，請重新輸入'); }
+            };
+
+            // ----------------------------------------------------
+            // 核心計算邏輯 (源自舊版 Vue 邏輯)
+            // ----------------------------------------------------
+            const currentSalary = useMemo(() => {
+                if (data.monthlySalaries[targetMonth]) return data.monthlySalaries[targetMonth];
+                const past = Object.keys(data.monthlySalaries).filter(m => m < targetMonth).sort().reverse();
+                return past.length > 0 ? data.monthlySalaries[past[0]] : 29500;
+            }, [data.monthlySalaries, targetMonth]);
+
+            const exactHourlyWage = useMemo(() => Math.round((currentSalary || 0) / 240), [currentSalary]);
+
+            const laborBracket = useMemo(() => {
+                const brackets = [29500, 30300, 31800, 33300, 34800, 36300, 38200, 40100, 42000, 43900, 45800];
+                return brackets.find(x => currentSalary <= x) || brackets[brackets.length - 1] || 0;
+            }, [currentSalary]);
+
+            const laborFee = useMemo(() => {
+                return Math.round(laborBracket * 0.125 * 0.2);
+            }, [laborBracket]);
+
+            const healthBracket = useMemo(() => {
+                const brackets = [29500, 30300, 31800, 33300, 34800, 36300, 38200, 40100, 42000, 43900, 45800, 48200, 50600, 53000, 55400, 57800, 60800, 63800, 66800, 69800, 72800, 76500, 80200, 83900, 87600, 92100, 96600, 101100, 105600, 110100, 115500, 120900, 126300, 131700, 137100, 142500, 147900, 219500];
+                return brackets.find(x => currentSalary <= x) || brackets[brackets.length - 1] || 0;
+            }, [currentSalary]);
+
+            const healthFee = useMemo(() => {
+                return Math.round(healthBracket * 0.0517 * 0.3) * (1 + (data.dependentsCount || 0));
+            }, [healthBracket, data.dependentsCount]);
+
+            const annualLeaveTotalHours = useMemo(() => {
+                if (!data.employmentStartDate) return 0;
+                const diffYears = (new Date() - new Date(data.employmentStartDate)) / (1000 * 60 * 60 * 24 * 365.25);
+                let days = 0;
+                if (diffYears >= 0.5 && diffYears < 1) days = 3;
+                else if (diffYears >= 1 && diffYears < 2) days = 7;
+                else if (diffYears >= 2 && diffYears < 3) days = 10;
+                else if (diffYears >= 3 && diffYears < 5) days = 14;
+                else if (diffYears >= 5 && diffYears < 10) days = 15;
+                else if (diffYears >= 10) days = Math.min(30, 15 + Math.floor(diffYears) - 9);
+                return days * 8;
+            }, [data.employmentStartDate]);
+
+            const leaveUsed = useMemo(() => {
+                const u = { annual: 0, sick: data.historicalLeave?.sick || 0, personal: data.historicalLeave?.personal || 0 };
+                const now = new Date();
+                const start = new Date(data.employmentStartDate || now);
+                let baseDate = new Date(now.getFullYear(), start.getMonth(), start.getDate());
+                if (baseDate > now) baseDate.setFullYear(baseDate.getFullYear() - 1);
+
+                data.records.forEach(r => {
+                    const recDate = new Date(r.date);
+                    if (r.type === 'annual') {
+                        if (recDate >= baseDate) u.annual += r.hours;
+                    } else if (u[r.type] !== undefined) {
+                        u[r.type] += r.hours;
+                    }
+                });
+                u.annual += data.historicalLeave?.annual || 0;
+                return u;
+            }, [data.records, data.historicalLeave, data.employmentStartDate]);
+
+            const leaveLimits = { annual: annualLeaveTotalHours, sick: 240, personal: 112 };
+            const formatDaysHours = (h) => h % 8 === 0 ? `${h / 8}天` : `${Math.floor(h / 8)}天${h % 8}h`;
+
+            const monthlyRecords = data.records.filter(r => r.date.startsWith(targetMonth)).sort((a,b) => new Date(b.date) - new Date(a.date));
+            
+            // 新增：計算本年度紀錄與實際出勤天數
+            const targetYear = targetMonth.split('-')[0];
+            const yearlyRecords = data.records.filter(r => r.date.startsWith(targetYear)).sort((a,b) => new Date(b.date) - new Date(a.date));
+            const actualWorkDays = new Set(monthlyRecords.filter(r => r.type === 'punch_in').map(r => r.date)).size;
+
+            const otHours = monthlyRecords.filter(r => r.type === 'overtime').reduce((sum, r) => sum + r.hours, 0);
+            const leaveHours = monthlyRecords.filter(r => ['annual','sick','personal'].includes(r.type)).reduce((sum, r) => sum + r.hours, 0);
+            const totalMonthlyChanges = monthlyRecords.reduce((sum, r) => sum + r.amount, 0);
+            const estimatedFinalSalary = (currentSalary || 0) + totalMonthlyChanges - laborFee - healthFee;
+
+            // 首頁總覽使用之動態計算變數
+            const allLeaves = data.records.filter(r => ['annual', 'sick', 'personal'].includes(r.type)).sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+            let weekdaysInMonth = 0;
+            const daysInMonth = new Date(targetYear, targetMonth.split('-')[1], 0).getDate();
+            for(let i=1; i<=daysInMonth; i++) {
+                const dateStr = `${targetYear}-${String(targetMonth.split('-')[1]).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                const d = new Date(targetYear, parseInt(targetMonth.split('-')[1])-1, i).getDay();
+                
+                // 動態判斷應出勤日
+                let shouldWork = (d !== 0 && d !== 6);
+                if (data.holidays && data.holidays[dateStr] !== undefined) {
+                    shouldWork = !data.holidays[dateStr];
+                }
+                if (shouldWork) weekdaysInMonth++;
+            }
+            const leaveDaysThisMonth = new Set(monthlyRecords.filter(r => ['annual', 'sick', 'personal'].includes(r.type)).map(r => r.date)).size;
+            const otDaysThisMonth = new Set(monthlyRecords.filter(r => r.type === 'overtime').map(r => r.date)).size;
+            const missedDaysThisMonth = Math.max(0, weekdaysInMonth - actualWorkDays - leaveDaysThisMonth);
+
+            // ----------------------------------------------------
+            // 視圖渲染區塊 (Views)
+            // ----------------------------------------------------
+            
+            // 1. 首頁總覽
+            const renderDashboard = () => (
+                <div className="fade-in">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-bold text-gray-800">首頁總覽</h2>
+                        <input type="month" value={targetMonth} onChange={(e) => setTargetMonth(e.target.value)} className="px-4 py-2 border rounded-lg font-bold text-gray-700 outline-none focus:border-[var(--primary)]" />
+                    </div>
+                    <div className="grid grid-cols-3 gap-6 mb-6">
+                        <StatCard icon="calendar-check" title="本月出勤天數" value={`${actualWorkDays} 天`} subtext="基於打卡紀錄" bgColor="bg-blue-50" iconColor="text-blue-500" />
+                        <StatCard icon="clock" title="本月加班時數" value={otHours} highlight="小時" bgColor="bg-green-50" iconColor="text-green-500" />
+                        <StatCard icon="plane" title="本月請假時數" value={leaveHours} highlight="小時" bgColor="bg-orange-50" iconColor="text-orange-500" />
+                    </div>
+                    <div className="grid grid-cols-3 gap-6 mb-6">
+                        <div className="card-data-container col-span-2">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-lg font-bold text-gray-800">本年度出勤與變動</h2>
+                                <button onClick={() => setCurrentView('records')} className="text-[var(--primary)] text-sm flex items-center hover:underline">查看完整紀錄 <i data-lucide="chevron-right" className="w-4 h-4"></i></button>
                             </div>
+                            <table className="w-full text-center text-sm">
+                                <thead>
+                                    <tr className="text-gray-500 border-b border-gray-100">
+                                        <th className="py-3 font-medium">日期</th>
+                                        <th className="py-3 font-medium">類別</th>
+                                        <th className="py-3 font-medium">時數/時間</th>
+                                        <th className="py-3 font-medium">增減金額</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {yearlyRecords.filter(r => ['annual', 'sick', 'personal'].includes(r.type)).slice(0, 5).map(r => (
+                                        <tr key={r.id} className="border-b border-gray-50 hover:bg-[#FDF2E9] transition-colors">
+                                            <td className="py-3">{r.date}</td>
+                                            <td className="py-3 font-bold">
+                                                {r.type === 'overtime' ? '加班' : r.type === 'sick' ? '病假' : r.type === 'personal' ? '事假' : r.type === 'annual' ? '特休' : r.type === 'punch_in' ? '上班打卡' : r.type === 'punch_out' ? '下班打卡' : '獎金'}
+                                            </td>
+                                            <td className="py-3">{r.time ? r.time : (r.hours > 0 ? `${r.hours} h` : '-')}</td>
+                                            <td className={`py-3 font-bold ${r.amount > 0 ? 'text-emerald-500' : (r.amount < 0 ? 'text-red-500' : 'text-gray-400')}`}>{isAmountMasked ? '***' : r.amount}</td>
+                                        </tr>
+                                    ))}
+                                    {yearlyRecords.length === 0 && <tr><td colSpan="4" className="py-6 text-gray-400">目前尚無紀錄</td></tr>}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="card-data-container">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-lg font-bold text-gray-800">假別餘額 (時數)</h2>
+                                <button onClick={() => setCurrentView('leave')} className="text-[var(--primary)] text-sm flex items-center hover:underline">管理 <i data-lucide="chevron-right" className="w-4 h-4"></i></button>
+                            </div>
+                            <div className="space-y-6">
+                                {[ 
+                                    { key: 'annual', name: '特休假', icon: 'star', color: 'bg-blue-500', iconBg: 'bg-blue-100 text-blue-500' },
+                                    { key: 'sick', name: '病假', icon: 'thermometer', color: 'bg-green-500', iconBg: 'bg-green-100 text-green-500' },
+                                    { key: 'personal', name: '事假', icon: 'clipboard-list', color: 'bg-orange-400', iconBg: 'bg-orange-100 text-orange-400' }
+                                ].map(item => {
+                                    const total = leaveLimits[item.key];
+                                    const used = leaveUsed[item.key];
+                                    const bal = Math.max(0, total - used);
+                                    return (
+                                        <div key={item.key}>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${item.iconBg}`}><i data-lucide={item.icon} className="w-4 h-4"></i></div>
+                                                    <span className="font-medium text-gray-700">{item.name}</span>
+                                                </div>
+                                                <div className="text-sm">
+                                                    <span className="font-bold text-gray-800">{bal}</span> / <span className="text-gray-400">{total}</span>
+                                                </div>
+                                            </div>
+                                            <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                                                <div className={`h-full ${item.color} rounded-full`} style={{ width: `${total > 0 ? (used / total) * 100 : 0}%` }}></div>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* 近期請假申請 與 出勤狀態 */}
+                    <div className="grid grid-cols-2 gap-6">
+                        <div className="card-data-container">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-lg font-bold text-gray-800">近期請假申請</h2>
+                                <button onClick={() => setCurrentView('records')} className="text-[var(--primary)] text-sm font-medium hover:underline">查看全部</button>
+                            </div>
+                            <div className="space-y-4 text-sm">
+                                {allLeaves.length === 0 ? (
+                                    <div className="text-gray-400 py-4 text-center">目前尚無請假紀錄</div>
+                                ) : (
+                                    allLeaves.map(r => {
+                                        const d = new Date(r.date);
+                                        const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+                                        return (
+                                            <div key={r.id} className="flex justify-between items-center pb-3 border-b border-gray-50">
+                                                <span className="text-gray-500 w-32">{r.date.replace(/-/g, '/')} ({weekDays[d.getDay()]})</span>
+                                                <span className="font-bold w-12 text-center">{r.type === 'sick' ? '病假' : r.type === 'personal' ? '事假' : '特休'}</span>
+                                                <span className="font-bold w-16 text-right">{r.hours.toFixed(1)} 小時</span>
+                                                <span className="ml-auto px-3 py-1 rounded-full border border-green-200 text-green-500 bg-green-50 text-xs">已登記</span>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="card-data-container">
+                            <h2 className="text-lg font-bold text-gray-800 mb-6">出勤狀態 (本月)</h2>
+                            <div className="flex items-center justify-around">
+                                <div className="relative w-36 h-36 rounded-full flex items-center justify-center" style={{
+                                    background: `conic-gradient(#3B82F6 0% ${(actualWorkDays/weekdaysInMonth)*100}%, #F97316 ${(actualWorkDays/weekdaysInMonth)*100}% ${((actualWorkDays+leaveDaysThisMonth)/weekdaysInMonth)*100}%, #22C55E ${((actualWorkDays+leaveDaysThisMonth)/weekdaysInMonth)*100}% ${((actualWorkDays+leaveDaysThisMonth+otDaysThisMonth)/weekdaysInMonth)*100}%, #9CA3AF ${((actualWorkDays+leaveDaysThisMonth+otDaysThisMonth)/weekdaysInMonth)*100}% 100%)`
+                                }}>
+                                    <div className="w-28 h-28 bg-white rounded-full flex flex-col items-center justify-center">
+                                        <span className="text-xs text-gray-500 mb-1">應出勤</span>
+                                        <span className="text-xl font-bold text-gray-800">{weekdaysInMonth} 天</span>
+                                    </div>
+                                </div>
+                                <div className="space-y-4 text-sm">
+                                    <div className="flex items-center gap-6">
+                                        <div className="flex items-center gap-2 w-16"><div className="w-3 h-3 rounded-full bg-blue-500"></div><span className="text-gray-700">出勤</span></div>
+                                        <span className="text-gray-600 font-medium">{actualWorkDays} 天 ({Math.round((actualWorkDays/weekdaysInMonth)*100 || 0)}%)</span>
+                                    </div>
+                                    <div className="flex items-center gap-6">
+                                        <div className="flex items-center gap-2 w-16"><div className="w-3 h-3 rounded-full bg-orange-500"></div><span className="text-gray-700">請假</span></div>
+                                        <span className="text-gray-600 font-medium">{leaveDaysThisMonth} 天 ({Math.round((leaveDaysThisMonth/weekdaysInMonth)*100 || 0)}%)</span>
+                                    </div>
+                                    <div className="flex items-center gap-6">
+                                        <div className="flex items-center gap-2 w-16"><div className="w-3 h-3 rounded-full bg-green-500"></div><span className="text-gray-700">加班</span></div>
+                                        <span className="text-gray-600 font-medium">{otDaysThisMonth} 天 ({Math.round((otDaysThisMonth/weekdaysInMonth)*100 || 0)}%)</span>
+                                    </div>
+                                    <div className="flex items-center gap-6">
+                                        <div className="flex items-center gap-2 w-16"><div className="w-3 h-3 rounded-full bg-gray-400"></div><span className="text-gray-700">未打卡</span></div>
+                                        <span className="text-gray-600 font-medium">{missedDaysThisMonth} 天 ({Math.round((missedDaysThisMonth/weekdaysInMonth)*100 || 0)}%)</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            // 2. 出勤打卡 (各類表單申報)
+            const [attForm, setAttForm] = useState({ date: new Date().toISOString().split('T')[0], type: 'overtime', hours: 1 });
+            const [bonusForm, setBonusForm] = useState({ date: new Date().toISOString().split('T')[0], type: 'bonus_festival', amount: '' });
+            
+            const handleAddAttendance = (e) => {
+                e.preventDefault();
+                let amt = 0;
+                if (attForm.type === 'overtime') {
+                    const r1 = 4 / 3, r2 = 5 / 3;
+                    amt = attForm.hours <= 2 ? Math.round(exactHourlyWage * r1 * attForm.hours) : Math.round((exactHourlyWage * r1 * 2) + (exactHourlyWage * r2 * (attForm.hours - 2)));
+                }
+                
+                let newRecords = [{ id: Date.now(), date: attForm.date, type: attForm.type, hours: attForm.hours, amount: amt }, ...data.records];
+                
+                // 連動修改當日下班打卡時間
+                if (attForm.type === 'overtime') {
+                    const punchOutIndex = newRecords.findIndex(r => r.date === attForm.date && r.type === 'punch_out');
+                    const targetHour = 18 + Math.floor(attForm.hours);
+                    const targetMin = (attForm.hours % 1) * 60;
+                    let finalMin = targetMin + 1 + Math.floor(Math.random() * 3);
+                    let finalHour = targetHour;
+                    if (finalMin >= 60) { finalHour += 1; finalMin -= 60; }
+                    const timeStr = `${String(finalHour).padStart(2, '0')}:${String(finalMin).padStart(2, '0')}`;
+                    
+                    if (punchOutIndex !== -1) {
+                        newRecords[punchOutIndex] = { ...newRecords[punchOutIndex], time: timeStr };
+                    } else {
+                        newRecords.push({ id: Date.now() + 1, date: attForm.date, type: 'punch_out', time: timeStr, hours: 0, amount: 0 });
+                    }
+                }
+                syncToCloud({ ...data, records: newRecords }, true);
+                alert('加班申報成功！下班時間已連動更新。');
+            };
+
+            const handleAddBonus = (e) => {
+                e.preventDefault();
+                if (!bonusForm.amount || bonusForm.amount <= 0) return alert('請輸入有效金額');
+                syncToCloud({ ...data, records: [{ id: Date.now(), date: bonusForm.date, type: bonusForm.type, hours: 0, amount: Number(bonusForm.amount) }, ...data.records] }, true);
+                setBonusForm({...bonusForm, amount: ''});
+                alert('獎金新增成功！');
+            };
+
+            const handleAddLeave = (e) => {
+                e.preventDefault();
+                let amt = 0;
+                if (leaveForm.type === 'personal') amt = -Math.round(exactHourlyWage * leaveForm.hours);
+                if (leaveForm.type === 'sick') amt = -Math.round((exactHourlyWage / 2) * leaveForm.hours);
+                syncToCloud({ ...data, records: [{ id: Date.now(), date: leaveForm.date, type: leaveForm.type, hours: leaveForm.hours, amount: amt }, ...data.records] }, true);
+                alert('請假申報成功！');
+            };
+
+            const renderForms = () => (
+                <div className="fade-in max-w-4xl mx-auto space-y-6">
+                    <h2 className="text-xl font-bold text-gray-800 mb-6">出勤打卡與申報</h2>
+                    
+                    {/* 新增：每日手動打卡區塊 */}
+                    <div className="card-data-container border-l-4 border-blue-500 mb-6 flex justify-between items-center bg-blue-50/30">
+                        <div>
+                            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><i data-lucide="clock" className="text-blue-500"></i> 每日出勤打卡</h3>
+                            <p className="text-xs text-gray-500 mt-1">若未手動打卡，系統將於規定時段自動推算並產生紀錄。</p>
+                        </div>
+                        <div className="flex gap-4">
+                            <button onClick={() => handleManualPunch('punch_in')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-all shadow-sm">上班打卡</button>
+                            <button onClick={() => handleManualPunch('punch_out')} className="bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-6 rounded-lg transition-all shadow-sm">下班打卡</button>
+                        </div>
+                    </div>
+
+                    <div className="card-data-container border-l-4 border-emerald-500">
+                        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="calendar-check" className="text-emerald-500"></i> 出勤異動申報</h3>
+                        <form onSubmit={handleAddAttendance} className="grid grid-cols-4 gap-4 items-end">
                             <div>
-                                <label class="block text-xs font-bold text-gray-400 mb-1">健保依附人數</label>
-                                <select v-model.number="dependentsCount" class="w-full px-3 py-2 border rounded-lg bg-white font-bold text-gray-700">
-                                    <option :value="0">僅保本人</option>
-                                    <option :value="1">1 位眷屬</option>
-                                    <option :value="2">2 位眷屬</option>
-                                    <option :value="3">3 位(含以上)</option>
+                                <label className="block text-xs font-bold text-gray-500 mb-1">類別</label>
+                                <select value={attForm.type} onChange={e => setAttForm({...attForm, type: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold">
+                                    <option value="overtime">平日加班</option>
                                 </select>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- 系統安全設定 (修改密碼) -->
-                    <div class="bg-white rounded-2xl shadow-sm border p-5">
-                        <h2 class="font-bold text-gray-800 text-sm border-b pb-2 mb-4 flex items-center"><i class="fa-solid fa-shield-halved text-red-500 mr-2"></i>系統安全設定</h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                             <div>
-                                <label class="block text-[10px] font-bold text-gray-400 mb-1">重設解鎖密碼 (需 {{ passcodeLength }} 位數字)</label>
-                                <input type="password" v-model="newPasscode" inputmode="numeric" :maxlength="passcodeLength" placeholder="請輸入新數字密碼" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-300 font-bold text-gray-700 placeholder-gray-300">
+                                <label className="block text-xs font-bold text-gray-500 mb-1">時數</label>
+                                <input type="number" step="0.5" required min="0.5" value={attForm.hours} onChange={e => setAttForm({...attForm, hours: Number(e.target.value)})} className="w-full px-3 py-2 border rounded-lg font-bold" />
                             </div>
-                            <div>
-                                <button @click="updatePasscode" class="w-full bg-red-50 border border-red-200 hover:bg-red-100 text-red-600 font-bold py-2.5 rounded-lg shadow-sm text-xs transition active:scale-[0.98]">
-                                    <i class="fa-solid fa-key mr-1"></i>儲存新密碼
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
-                        <div class="bg-slate-50 px-5 py-3 border-b flex justify-between items-center">
-                            <h2 class="font-bold text-gray-800 text-sm flex items-center"><i class="fa-solid fa-mug-hot text-amber-500 mr-2"></i>年度假別管控</h2>
-                            <button @click="resetHistoricalLeave" class="text-[10px] font-bold text-amber-600 bg-white border border-amber-200 px-2 py-1 rounded shadow-sm">
-                                <i class="fa-solid fa-rotate-right mr-1"></i>全部歸零
-                            </button>
-                        </div>
-                        <div class="p-5 grid grid-cols-3 gap-3">
-                            <div v-for="(val, key) in leaveLimits" :key="key" class="bg-slate-50 p-3 rounded-xl border relative overflow-hidden flex flex-col justify-between">
-                                <div :class="{'bg-blue-400': key==='annual', 'bg-amber-400': key==='sick', 'bg-red-400': key==='personal'}" class="absolute left-0 top-0 w-1 h-full"></div>
-                                <div class="text-[10px] font-black text-gray-400 mb-2 uppercase tracking-wide">{{ key === 'annual' ? '特休' : (key === 'sick' ? '病假' : '事假') }}</div>
-                                <div class="text-base font-extrabold text-gray-800 leading-none">{{ formatDaysHours(leaveBalance[key]) }}</div>
-                                <div class="mt-2 pt-2 border-t border-gray-200 flex justify-between items-center">
-                                    <span class="text-[8px] text-gray-400">期初已休</span>
-                                    <input type="number" v-model.number="historicalLeave[key]" class="w-8 text-right text-[10px] font-bold bg-transparent focus:outline-none">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="px-5 py-3 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between">
-                            <span class="text-[10px] text-gray-500 font-bold">到職日設定 (計算特休用)：</span>
-                            <input type="date" v-model="employmentStartDate" class="text-[10px] border border-gray-200 bg-white px-2 py-1 rounded font-bold text-indigo-700 outline-none">
-                        </div>
-                    </div>
-
-                    <div class="bg-white rounded-2xl shadow-sm border p-5">
-                        <h2 class="font-bold text-gray-800 text-sm border-b pb-2 mb-4 flex items-center"><i class="fa-solid fa-calendar-check text-emerald-500 mr-2"></i>出勤異動申報</h2>
-                        <form @submit.prevent="addRecord" class="flex flex-col gap-3">
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                <div>
-                                    <label class="text-[10px] font-bold text-gray-400 mb-1 block">發生日期</label>
-                                    <input type="date" v-model="formData.date" required class="w-full px-3 py-2 border rounded-lg text-sm font-bold text-gray-700">
-                                </div>
-                                <div>
-                                    <label class="text-[10px] font-bold text-gray-400 mb-1 block">項目類別</label>
-                                    <select v-model="formData.type" class="w-full px-3 py-2 border rounded-lg bg-white text-sm font-bold text-gray-700">
-                                        <option value="" disabled hidden>請選擇...</option>
-                                        <optgroup label="請假">
-                                            <option value="annual">🌴 特休 │ 剩 {{ formatDaysHours(leaveBalance.annual) }}</option>
-                                            <option value="sick">💊 病假 │ 剩 {{ formatDaysHours(leaveBalance.sick) }}</option>
-                                            <option value="personal">⚠️ 事假 │ 剩 {{ formatDaysHours(leaveBalance.personal) }}</option>
-                                        </optgroup>
-                                        <optgroup label="加班">
-                                            <option value="overtime">⏱️ 平日加班</option>
-                                        </optgroup>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="text-[10px] font-bold text-gray-400 mb-1 block">時數</label>
-                                    <input type="number" v-model.number="formData.hours" step="0.5" required class="w-full px-3 py-2 border rounded-lg text-sm font-bold text-gray-700">
-                                </div>
-                            </div>
-                            <button type="submit" class="bg-emerald-600 text-white font-bold py-2.5 rounded-xl shadow-sm active:scale-[0.98]">申報送出</button>
+                            <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg transition-all shadow-sm">申報送出</button>
                         </form>
                     </div>
 
-                    <div class="bg-white rounded-2xl shadow-sm border p-5">
-                        <h2 class="font-bold text-gray-800 text-sm border-b pb-2 mb-4 flex items-center"><i class="fa-solid fa-sack-dollar text-yellow-500 mr-2"></i>額外獎金收入申報</h2>
-                        <form @submit.prevent="addBonusRecord" class="flex flex-col gap-3">
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                <div>
-                                    <label class="text-[10px] font-bold text-gray-400 mb-1 block">發放日期</label>
-                                    <input type="date" v-model="bonusData.date" required class="w-full px-3 py-2 border rounded-lg text-sm font-bold text-gray-700">
-                                </div>
-                                <div>
-                                    <label class="text-[10px] font-bold text-gray-400 mb-1 block">獎金名目</label>
-                                    <select v-model="bonusData.type" class="w-full px-3 py-2 border rounded-lg bg-white text-sm font-bold text-gray-700">
-                                        <option value="" disabled hidden>請選擇...</option>
-                                        <option value="bonus_festival">🎁 三節獎金</option>
-                                        <option value="bonus_incentive">🚀 激勵獎金</option>
-                                        <option value="bonus_yearend">🧧 年終獎金</option>
-                                        <option value="bonus_birthday">🎂 生日禮金</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="text-[10px] font-bold text-gray-400 mb-1 block">金額 (NT$)</label>
-                                    <input type="number" v-model.number="bonusData.amount" required min="1" class="w-full px-3 py-2 border rounded-lg text-sm font-bold text-gray-700">
-                                </div>
+                    <div className="card-data-container border-l-4 border-yellow-500">
+                        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="sack-dollar" className="text-yellow-500"></i> 額外獎金收入申報</h3>
+                        <form onSubmit={handleAddBonus} className="grid grid-cols-4 gap-4 items-end">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 mb-1">發放日期</label>
+                                <input type="date" required value={bonusForm.date} onChange={e => setBonusForm({...bonusForm, date: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold" />
                             </div>
-                            <button type="submit" class="bg-yellow-500 text-white font-bold py-2.5 rounded-xl shadow-sm active:scale-[0.98]">新增獎金</button>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 mb-1">獎金名目</label>
+                                <select value={bonusForm.type} onChange={e => setBonusForm({...bonusForm, type: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold">
+                                    <option value="bonus_festival">三節獎金</option>
+                                    <option value="bonus_incentive">激勵獎金</option>
+                                    <option value="bonus_yearend">年終獎金</option>
+                                    <option value="bonus_birthday">生日禮金</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 mb-1">金額 (NT$)</label>
+                                <input type="number" required min="1" value={bonusForm.amount} onChange={e => setBonusForm({...bonusForm, amount: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold" />
+                            </div>
+                            <button type="submit" className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 rounded-lg transition-all shadow-sm">新增獎金</button>
                         </form>
                     </div>
-                    
-                    <div class="text-center py-4 text-[10px] text-gray-300 font-bold uppercase tracking-widest">v8.4.5 月份導覽美化版</div>
                 </div>
+            );
 
-                <!-- ================= 第二頁：報表區 ================= -->
-                <div v-else key="report" class="space-y-5">
-                    <div class="bg-white rounded-2xl border p-4 flex justify-between items-center shadow-sm">
-                        <div class="flex items-center text-sm font-bold text-gray-600">
-                            <i class="fa-solid fa-calendar-check mr-2 text-indigo-500"></i>月份切換
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <button @click="changeMonth(-1)" class="w-10 h-10 flex items-center justify-center rounded-full border border-gray-100 hover:bg-gray-50 active:scale-90 transition-all">
-                                <i class="fa-solid fa-chevron-left text-gray-400"></i>
-                            </button>
-                            <div class="text-center min-w-[80px]">
-                                <div class="text-[10px] text-gray-400 font-bold leading-none mb-1">{{ targetMonth.split('-')[0] }}</div>
-                                <div class="text-xl font-black text-indigo-700 leading-none">{{ Number(targetMonth.split('-')[1]) }}月</div>
-                                <button @click="goCurrentMonth" class="mt-1 text-[9px] font-bold text-indigo-400 bg-indigo-50 px-2 py-0.5 rounded-full hover:bg-indigo-100">回到本月</button>
-                            </div>
-                            <button @click="changeMonth(1)" class="w-10 h-10 flex items-center justify-center rounded-full border border-gray-100 hover:bg-gray-50 active:scale-90 transition-all">
-                                <i class="fa-solid fa-chevron-right text-gray-400"></i>
-                            </button>
-                        </div>
+            // 3. 出勤紀錄 (列表與刪除)
+            const renderRecords = () => (
+                <div className="fade-in card-data-container">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-bold text-gray-800">出勤紀錄與異動明細</h2>
+                        <input type="month" value={targetMonth} onChange={(e) => setTargetMonth(e.target.value)} className="px-4 py-2 border rounded-lg font-bold text-gray-700 outline-none focus:border-[var(--primary)]" />
                     </div>
+                    <table className="w-full text-center text-sm">
+                        <thead className="bg-slate-50">
+                            <tr className="text-gray-500 border-b border-gray-200">
+                                <th className="py-3 font-medium">日期</th>
+                                <th className="py-3 font-medium">類別</th>
+                                <th className="py-3 font-medium">時數</th>
+                                <th className="py-3 font-medium">增減金額</th>
+                                <th className="py-3 font-medium">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {monthlyRecords.length === 0 ? (
+                                <tr><td colSpan="5" className="py-12 text-gray-400 font-bold">本月無紀錄</td></tr>
+                            ) : (
+                                monthlyRecords.map(r => (
+                                    <tr key={r.id} className="border-b border-gray-100 hover:bg-[#FDF2E9] transition-colors">
+                                        <td className="py-4">{r.date}</td>
+                                        <td className={`py-4 font-bold ${r.type === 'annual' ? 'text-blue-500' : r.type === 'sick' ? 'text-green-500' : r.type === 'personal' ? 'text-orange-400' : ''}`}>
+                                            {r.type.includes('bonus') ? '獎金' : (r.type === 'overtime' ? '加班' : (r.type === 'sick' ? '病假' : (r.type === 'personal' ? '事假' : (r.type === 'punch_in' ? '上班打卡' : (r.type === 'punch_out' ? '下班打卡' : '特休')))))}
+                                        </td>
+                                        <td className="py-4 font-bold">{r.time ? r.time : (r.hours > 0 ? `${r.hours} h` : '-')}</td>
+                                        <td className={`py-4 font-bold ${r.amount > 0 ? 'text-emerald-500' : (r.amount < 0 ? 'text-red-500' : 'text-gray-400')}`}>{isAmountMasked ? '***' : r.amount}</td>
+                                        <td className="py-4">
+                                            <button onClick={() => { 
+                                                if(window.confirm('確定刪除此紀錄？')) {
+                                                    let newRecords = data.records.filter(x => x.id !== r.id);
+                                                    if (r.type === 'overtime') {
+                                                        const punchOutIndex = newRecords.findIndex(x => x.date === r.date && x.type === 'punch_out');
+                                                        if (punchOutIndex !== -1) {
+                                                            const min = 0 + Math.floor(Math.random() * 4);
+                                                            newRecords[punchOutIndex] = { ...newRecords[punchOutIndex], time: `18:0${min}` };
+                                                        }
+                                                    }
+                                                    syncToCloud({ ...data, records: newRecords });
+                                                }
+                                            }} className="text-red-400 hover:text-red-600 transition-colors p-2 bg-red-50 rounded-full hover:bg-red-100">
+                                                <i data-lucide="trash-2" className="w-4 h-4"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            );
 
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="bg-white p-4 rounded-2xl border shadow-sm flex flex-col justify-center">
-                            <div class="text-[10px] font-bold text-gray-400 mb-2">本月加給與獎金</div>
-                            <div class="space-y-1 text-xs font-bold">
-                                <div class="flex justify-between"><span class="text-gray-500">加班</span><span class="text-emerald-500">+{{ isAmountMasked ? '***' : getMonthlySum('overtime').toLocaleString() }}</span></div>
-                                <div class="flex justify-between"><span class="text-gray-500">獎金</span><span class="text-emerald-500">+{{ isAmountMasked ? '***' : getBonusSum().toLocaleString() }}</span></div>
-                            </div>
-                        </div>
-                        <div class="bg-white p-4 rounded-2xl border shadow-sm flex flex-col justify-center">
-                            <div class="text-[10px] font-bold text-gray-400 mb-2">本月請假扣款</div>
-                            <div class="space-y-1 text-xs font-bold">
-                                <div class="flex justify-between"><span class="text-gray-500">病假</span><span class="text-red-500">{{ isAmountMasked ? '***' : getMonthlySum('sick').toLocaleString() }}</span></div>
-                                <div class="flex justify-between"><span class="text-gray-500">事假</span><span class="text-red-500">{{ isAmountMasked ? '***' : getMonthlySum('personal').toLocaleString() }}</span></div>
-                            </div>
-                        </div>
-                        <div class="bg-white p-4 rounded-2xl border shadow-sm col-span-2 no-select" @touchstart="startPress('insurance')" @touchend="cancelPress" @mousedown="startPress('insurance')" @mouseup="cancelPress">
-                            <div class="flex justify-between items-center mb-2"><div class="text-[10px] font-bold text-gray-400">法定保險扣款 (自付額)</div><div class="text-[8px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded">長按查看級距</div></div>
-                            <div class="space-y-1 text-xs font-bold">
-                                <div class="flex justify-between"><span>勞保</span><span class="text-amber-600">- NT$ {{ isAmountMasked ? '***' : laborFee.toLocaleString() }}</span></div>
-                                <div class="flex justify-between"><span>健保</span><span class="text-amber-600">- NT$ {{ isAmountMasked ? '***' : healthFee.toLocaleString() }}</span></div>
-                            </div>
-                        </div>
-                    </div>
+            // 4. 請假管理
+            const renderLeave = () => (
+                <div className="fade-in max-w-4xl mx-auto">
+                    <h2 className="text-xl font-bold text-gray-800 mb-6">請假管理與假別設定</h2>
                     
-                    <div class="bg-indigo-600 p-6 rounded-2xl text-white shadow-xl text-center relative overflow-hidden">
-                        <div class="absolute -left-4 -bottom-4 opacity-10 text-8xl"><i class="fa-solid fa-wallet"></i></div>
-                        <div class="text-[11px] opacity-80 mb-1 font-bold">{{ targetMonth.replace('-','年') }}月 實發預估</div>
-                        <div class="text-4xl font-black relative z-10">NT$ {{ isAmountMasked ? '***,***' : estimatedFinalSalary.toLocaleString() }}</div>
-                        <div class="text-[9px] opacity-70 mt-2 bg-indigo-800/40 inline-block px-2 py-0.5 rounded-full relative z-10">底薪 + 加班/獎金 - 請假 - 保險</div>
-                    </div>
-
-                    <div class="bg-white rounded-2xl border overflow-hidden shadow-sm">
-                        <div class="p-3 bg-slate-50 border-b flex justify-between items-center">
-                            <select v-model="filterType" class="text-xs border rounded-lg px-2 py-1 bg-white font-bold text-gray-600">
-                                <option value="all">顯示全部</option>
-                                <option value="annual">僅特休</option><option value="sick">僅病假</option>
-                                <option value="personal">僅事假</option><option value="overtime">僅加班</option>
-                                <option value="bonus">僅獎金</option>
-                            </select>
-                            <span class="text-[9px] text-gray-400 font-bold md:hidden"><i class="fa-solid fa-arrow-left mr-1"></i>左滑修改/刪除</span>
-                            <span class="text-[9px] text-gray-400 font-bold hidden md:inline"><i class="fa-solid fa-pen-to-square mr-1"></i>點擊右側圖示修改/刪除</span>
-                        </div>
-                        <div v-if="filteredAndSortedRecords.length === 0" class="p-12 text-center text-gray-300 italic text-sm font-bold">無紀錄</div>
-                        <div v-else class="flex flex-col">
-                            <div v-for="r in filteredAndSortedRecords" :key="r.id" class="relative border-b border-gray-50 overflow-hidden bg-red-50">
-                                <div class="absolute right-0 top-0 bottom-0 w-32 flex items-center justify-center">
-                                    <button @click.stop="openEditModal(r)" class="w-full h-full text-blue-500 font-bold flex flex-col items-center justify-center active:bg-blue-50 transition border-r border-gray-100/50">
-                                        <i class="fa-solid fa-pen-to-square text-lg mb-1"></i><span class="text-[10px]">修改</span>
-                                    </button>
-                                    <button @click.stop="removeRecord(r.id)" class="w-full h-full text-red-500 font-bold flex flex-col items-center justify-center active:bg-red-50 transition">
-                                        <i class="fa-solid fa-trash-can text-lg mb-1"></i><span class="text-[10px]">刪除</span>
-                                    </button>
-                                </div>
-                                <div class="relative bg-white p-4 flex justify-between items-center transition-transform duration-200"
-                                     @touchstart="touchStart($event, r.id)" @touchmove="touchMove($event, r.id)" @touchend="touchEnd(r.id)"
-                                     :style="{ transform: `translateX(${swipeState[r.id] || 0}px)` }">
-                                    
-                                    <!-- 日期與時數區塊 (完全不遮蔽，保留給使用者核對) -->
-                                    <div>
-                                        <div class="text-[10px] text-gray-400 font-bold mb-0.5">{{ r.date }}</div>
-                                        <div class="flex items-center">
-                                            <span :class="getTypeBadgeClass(r.type)" class="px-2 py-0.5 rounded text-[10px] font-black mr-2">{{ getTypeName(r.type) }}</span>
-                                            <span v-if="r.hours > 0" class="text-xs text-gray-500 font-bold">{{ r.hours }}h</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- 金額與刪除按鈕區塊 (僅遮蔽此處的金額 r.amount) -->
-                                    <div class="flex items-center">
-                                        <div class="font-black text-sm" :class="r.amount > 0 ? 'text-emerald-500' : (r.amount < 0 ? 'text-red-500' : 'text-gray-400')">
-                                            {{ isAmountMasked ? '***' : (r.amount > 0 ? '+' : '') + (r.amount === 0 ? '無扣款' : r.amount.toLocaleString()) }}
-                                        </div>
-                                        <button @click.stop="openEditModal(r)" class="hidden md:flex ml-3 text-gray-300 hover:text-blue-500 transition-colors items-center justify-center w-8 h-8 rounded-full hover:bg-blue-50" title="修改此紀錄">
-                                            <i class="fa-solid fa-pen-to-square text-lg"></i>
-                                        </button>
-                                        <button @click.stop="removeRecord(r.id)" class="hidden md:flex ml-1 text-gray-300 hover:text-red-500 transition-colors items-center justify-center w-8 h-8 rounded-full hover:bg-red-50" title="刪除此紀錄">
-                                            <i class="fa-solid fa-trash-can text-lg"></i>
-                                        </button>
-                                    </div>
-                                    
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-4 mt-6">
-                        <button @click="exportData" class="flex-1 bg-indigo-50 border border-indigo-200 py-3 rounded-xl font-bold text-xs text-indigo-700 shadow-sm active:scale-95 flex items-center justify-center gap-2 transition-all hover:bg-indigo-100">
-                            <i class="fa-solid fa-download"></i>下載本機存檔
-                        </button>
-                        <div class="flex-1 relative">
-                            <input type="file" @change="importData" 
-                                   class="absolute inset-0 opacity-0 cursor-pointer z-10" 
-                                   accept="application/json">
-                            <div class="h-full bg-emerald-50 border border-emerald-200 py-3 rounded-xl font-bold text-xs text-center text-emerald-700 shadow-sm flex items-center justify-center gap-2 pointer-events-none transition-all">
-                                <i class="fa-solid fa-upload"></i>匯入本機紀錄
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- v8.3 全新 GitHub API 雲端同步區塊 (含獨立遮蔽切換) -->
-                    <div class="bg-slate-800 rounded-2xl shadow-xl border border-slate-700 p-5 mt-6 text-white relative overflow-hidden">
-                        <div class="absolute right-0 top-0 w-16 h-16 bg-blue-500 rounded-bl-full opacity-20"></div>
-                        
-                        <!-- 區塊標題與獨立隱私開關 -->
-                        <div class="flex justify-between items-center mb-4 relative z-10">
-                            <h2 class="font-bold text-lg flex items-center">
-                                <i class="fa-brands fa-github text-2xl mr-2 text-blue-400"></i> GitHub 雲端同步
-                            </h2>
-                            <button @click="isCloudMasked = !isCloudMasked" class="text-slate-400 hover:text-white transition-colors p-2" title="隱藏/顯示憑證">
-                                <i class="fa-solid text-lg" :class="isCloudMasked ? 'fa-eye-slash' : 'fa-eye'"></i>
-                            </button>
-                        </div>
-                        
-                        <div class="space-y-4 relative z-10">
+                    <div className="card-data-container border-l-4 border-[#E67E22] mb-6">
+                        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="plane" className="text-[#E67E22]"></i> 請假申報</h3>
+                        <form onSubmit={handleAddLeave} className="grid grid-cols-4 gap-4 items-end">
                             <div>
-                                <label class="block text-[10px] font-bold text-slate-400 mb-1">GitHub 金鑰 (Personal Access Token)</label>
-                                <!-- 動態切換 type 以遮蔽憑證 -->
-                                <input :type="isCloudMasked ? 'password' : 'text'" v-model="cloudToken" placeholder="輸入您的 GitHub 金鑰 (ghp_...)" 
-                                       class="w-full px-3 py-2 border border-slate-600 bg-slate-900 rounded-lg text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                                <label className="block text-xs font-bold text-gray-500 mb-1">發生日期</label>
+                                <input type="date" required value={leaveForm.date} onChange={e => setLeaveForm({...leaveForm, date: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold" />
                             </div>
-                            
                             <div>
-                                <label class="block text-[10px] font-bold text-slate-400 mb-1">雲端代碼 (Gist ID) - <span class="font-normal text-amber-400">跨裝置下載請輸入同一組</span></label>
-                                <!-- 動態切換 type 以遮蔽憑證 -->
-                                <input :type="isCloudMasked ? 'password' : 'text'" v-model="cloudGistId" placeholder="首次上傳將自動生成代碼" 
-                                       class="w-full px-3 py-2 border border-slate-600 bg-slate-900 rounded-lg text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                                <label className="block text-xs font-bold text-gray-500 mb-1">假別</label>
+                                <select value={leaveForm.type} onChange={e => setLeaveForm({...leaveForm, type: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold">
+                                    <option value="annual">特休</option>
+                                    <option value="sick">病假</option>
+                                    <option value="personal">事假</option>
+                                </select>
                             </div>
-                            
-                            <div class="flex gap-3 pt-2">
-                                <button @click="uploadToCloud" :disabled="isSyncing" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-lg shadow-sm text-xs transition disabled:opacity-50 flex justify-center items-center">
-                                    <i class="fa-solid" :class="isSyncing ? 'fa-spinner fa-spin' : 'fa-cloud-arrow-up'"></i>
-                                    <span class="ml-1">{{ isSyncing ? '處理中...' : '上傳備份至雲端' }}</span>
-                                </button>
-                                <button @click="downloadFromCloud" :disabled="isSyncing" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-lg shadow-sm text-xs transition disabled:opacity-50 flex justify-center items-center">
-                                    <i class="fa-solid" :class="isSyncing ? 'fa-spinner fa-spin' : 'fa-cloud-arrow-down'"></i>
-                                    <span class="ml-1">{{ isSyncing ? '處理中...' : '從雲端下載覆蓋' }}</span>
-                                </button>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 mb-1">時數</label>
+                                <input type="number" step="0.5" required min="0.5" value={leaveForm.hours} onChange={e => setLeaveForm({...leaveForm, hours: Number(e.target.value)})} className="w-full px-3 py-2 border rounded-lg font-bold" />
                             </div>
-                        </div>
+                            <button type="submit" className="bg-[#D35400] hover:bg-[#E67E22] text-white font-bold py-2 rounded-lg transition-all shadow-sm">申報送出</button>
+                        </form>
                     </div>
 
-                </div>
-            </transition>
-
-            <!-- 彈窗 -->
-            
-            <transition name="fade">
-                <div v-if="isEditModalOpen" class="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 backdrop-blur-sm px-6">
-                    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
-                        <div class="p-6">
-                            <h3 class="text-lg font-black text-gray-800 mb-4 border-b pb-2 flex items-center">
-                                <i class="fa-solid fa-pen-to-square text-blue-500 mr-2"></i>修改申報紀錄
-                            </h3>
-                            <div class="space-y-4 text-left">
-                                <div>
-                                    <label class="text-[10px] font-bold text-gray-400 mb-1 block">日期</label>
-                                    <input type="date" v-model="editFormData.date" class="w-full px-3 py-2 border rounded-lg text-sm font-bold">
-                                </div>
-                                <div>
-                                    <label class="text-[10px] font-bold text-gray-400 mb-1 block">類別</label>
-                                    <select v-model="editFormData.type" class="w-full px-3 py-2 border rounded-lg bg-white text-sm font-bold">
-                                        <optgroup label="請假/加班">
-                                            <option value="annual">🌴 特休</option>
-                                            <option value="sick">💊 病假</option>
-                                            <option value="personal">⚠️ 事假</option>
-                                            <option value="overtime">⏱️ 平日加班</option>
-                                        </optgroup>
-                                        <optgroup label="獎金收入">
-                                            <option value="bonus_festival">🎁 三節獎金</option>
-                                            <option value="bonus_incentive">🚀 激勵獎金</option>
-                                            <option value="bonus_yearend">🧧 年終獎金</option>
-                                            <option value="bonus_birthday">🎂 生日禮金</option>
-                                        </optgroup>
-                                    </select>
-                                </div>
-                                <div v-if="!editFormData.type.startsWith('bonus')">
-                                    <label class="text-[10px] font-bold text-gray-400 mb-1 block">時數</label>
-                                    <input type="number" v-model.number="editFormData.hours" step="0.5" class="w-full px-3 py-2 border rounded-lg text-sm font-bold">
-                                </div>
-                                <div v-if="editFormData.type.startsWith('bonus')">
-                                    <label class="text-[10px] font-bold text-gray-400 mb-1 block">金額 (NT$)</label>
-                                    <input type="number" v-model.number="editFormData.amount" class="w-full px-3 py-2 border rounded-lg text-sm font-bold">
-                                </div>
-                            </div>
+                    <div className="card-data-container mb-6">
+                        <div className="flex justify-between items-center mb-6 border-b pb-4">
+                            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><i data-lucide="calendar-range" className="text-amber-500"></i> 假別餘額管控</h3>
+                            <button onClick={() => {
+                                if(window.confirm('此動作將歸零「病假」與「事假」的期初時數，確定要重置嗎？')) {
+                                    syncToCloud({...data, historicalLeave: {...data.historicalLeave, sick: 0, personal: 0}});
+                                    alert('已重置');
+                                }
+                            }} className="btn-outline-action px-3 py-1 rounded text-xs font-bold">全部歸零</button>
                         </div>
-                        <div class="flex border-t border-gray-100">
-                            <button @click="isEditModalOpen = false" class="flex-1 py-4 text-sm font-bold text-gray-400 border-r active:bg-gray-50">取消</button>
-                            <button @click="saveEdit" class="flex-1 py-4 text-sm font-black text-blue-500 active:bg-blue-50">儲存修改</button>
+                        <div className="grid grid-cols-3 gap-6">
+                            {[ { key: 'annual', name: '特休', color: 'bg-blue-400' }, { key: 'sick', name: '病假', color: 'bg-amber-400' }, { key: 'personal', name: '事假', color: 'bg-red-400' } ].map(item => (
+                                <div key={item.key} className="bg-slate-50 p-4 rounded-xl border relative overflow-hidden">
+                                    <div className={`absolute left-0 top-0 w-1 h-full ${item.color}`}></div>
+                                    <div className="text-xs font-black text-gray-400 mb-2 uppercase tracking-wide">{item.name}</div>
+                                    <div className="text-2xl font-extrabold text-gray-800 leading-none mb-4">{formatDaysHours(Math.max(0, leaveLimits[item.key] - leaveUsed[item.key]))}</div>
+                                    <div className="pt-3 border-t border-gray-200 flex justify-between items-center text-sm">
+                                        <span className="text-gray-500 font-bold">期初已休(時)</span>
+                                        <input type="number" className="w-16 text-center border rounded px-1 py-1 font-bold outline-none focus:border-[var(--primary)]"
+                                            value={data.historicalLeave[item.key] || 0}
+                                            onChange={e => syncToCloud({...data, historicalLeave: {...data.historicalLeave, [item.key]: Number(e.target.value)}})} />
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
-            </transition>
+            );
 
-            <transition name="fade">
-                <div v-if="modal.isOpen" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm px-6 text-center">
-                    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-xs overflow-hidden">
-                        <div class="p-8">
-                            <h3 class="text-lg font-black text-gray-800 mb-3">{{ modal.title }}</h3>
-                            <p class="text-sm text-gray-500 leading-relaxed whitespace-pre-line">{{ modal.message }}</p>
+            // 5. 薪資查詢
+            const renderSalary = () => (
+                <div className="fade-in max-w-3xl mx-auto space-y-6">
+                    <h2 className="text-xl font-bold text-gray-800 mb-6">薪資結構查詢</h2>
+                    <div className="bg-[var(--primary)] p-8 rounded-3xl text-white shadow-xl text-center relative overflow-hidden">
+                        <div className="absolute -left-4 -bottom-4 opacity-10 text-8xl"><i data-lucide="wallet" className="w-48 h-48"></i></div>
+                        <div className="text-sm opacity-80 mb-2 font-bold">{targetMonth.replace('-','年')}月 實發預估</div>
+                        <div className="text-5xl font-black relative z-10 tracking-tight">NT$ {isAmountMasked ? '***,***' : estimatedFinalSalary.toLocaleString()}</div>
+                        <div className="text-xs opacity-80 mt-4 bg-black/20 inline-block px-4 py-1.5 rounded-full relative z-10">底薪 + 加班與獎金 - 請假扣款 - 法定保險</div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-6">
+                        <div className="card-data-container">
+                            <h3 className="text-sm font-bold text-gray-400 mb-4 border-b pb-2">本月變動明細</h3>
+                            <div className="space-y-3 text-sm font-bold">
+                                <div className="flex justify-between"><span className="text-gray-600">本月設定底薪</span><span>{isAmountMasked ? '***' : currentSalary.toLocaleString()}</span></div>
+                                <div className="flex justify-between"><span className="text-gray-600">加給與獎金</span><span className="text-emerald-500">+{isAmountMasked ? '***' : monthlyRecords.filter(r => r.amount > 0).reduce((s,r)=>s+r.amount,0).toLocaleString()}</span></div>
+                                <div className="flex justify-between"><span className="text-gray-600">請假扣款</span><span className="text-red-500">{isAmountMasked ? '***' : monthlyRecords.filter(r => r.amount < 0).reduce((s,r)=>s+r.amount,0).toLocaleString()}</span></div>
+                            </div>
                         </div>
-                        <div v-if="modal.type === 'alert'" class="flex border-t border-gray-100">
-                            <button @click="modal.isOpen = false" class="flex-1 py-4 text-sm font-black text-indigo-600 active:bg-gray-50">我知道了</button>
-                        </div>
-                        <div v-else class="flex border-t border-gray-100">
-                            <button @click="modal.isOpen = false" class="flex-1 py-4 text-sm font-bold text-gray-400 border-r active:bg-gray-50">取消</button>
-                            <button @click="handleModalConfirm" class="flex-1 py-4 text-sm font-black text-red-500 active:bg-red-50">確定執行</button>
+                        <div className="card-data-container relative select-none"
+                             onMouseDown={handlePressStart} onMouseUp={handlePressEnd} onMouseLeave={handlePressEnd}
+                             onTouchStart={handlePressStart} onTouchEnd={handlePressEnd}>
+                            <h3 className="text-sm font-bold text-gray-400 mb-4 border-b pb-2">法定保險扣款 (自付額)</h3>
+                            <div className="space-y-3 text-sm font-bold">
+                                <div className="flex justify-between"><span>勞工保險</span><span className="text-amber-600">- NT$ {isAmountMasked ? '***' : laborFee.toLocaleString()}</span></div>
+                                <div className="flex justify-between"><span>全民健保</span><span className="text-amber-600">- NT$ {isAmountMasked ? '***' : healthFee.toLocaleString()}</span></div>
+                                <div className="pt-2 mt-2 border-t border-gray-100 text-xs text-gray-400 font-normal">依附人數：{data.dependentsCount} 人</div>
+                            </div>
+                            {showBrackets && (
+                                <div className="absolute bottom-full left-0 mb-2 w-full bg-[#FDF2E9] border border-[#E67E22] shadow-xl rounded-xl p-4 z-50 text-xs text-gray-700 fade-in">
+                                    <div className="font-bold mb-2 text-[#D35400]">目前適用之保險級距</div>
+                                    <ul className="space-y-1 font-medium">
+                                        <li>目前設定底薪：NT$ {isAmountMasked ? '***' : currentSalary.toLocaleString()}</li>
+                                        <li className="text-[#D35400]">勞保投保級距：NT$ {isAmountMasked ? '***' : laborBracket.toLocaleString()}</li>
+                                        <li className="text-[#D35400]">健保投保級距：NT$ {isAmountMasked ? '***' : healthBracket.toLocaleString()}</li>
+                                    </ul>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
-            </transition>
-        </main>
-        </div>
-    </div>
+            );
 
-    <script>
-        const { createApp, ref, computed, watch, onMounted } = Vue;
-
-        createApp({
-            setup() {
-                const currentPage = ref('input');
-                const isOfflineReady = ref(false);
+            // 6. 員工管理 (設定與資料匯入)
+            const handleHolidayImport = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
                 
-                // 新增各月薪資物件，並設定自動繼承邏輯
-                const monthlySalaries = ref({}); 
-                const monthlySalary = computed({
-                    get: () => {
-                        if (monthlySalaries.value[targetMonth.value]) return monthlySalaries.value[targetMonth.value];
-                        const pastMonths = Object.keys(monthlySalaries.value).filter(m => m < targetMonth.value).sort().reverse();
-                        return pastMonths.length > 0 ? monthlySalaries.value[pastMonths[0]] : 29500;
-                    },
-                    set: (val) => { monthlySalaries.value[targetMonth.value] = val; }
-                });
+                // 新增防呆：詢問是否要保留或清空舊資料
+                const keepOld = window.confirm('是否要保留系統中既有的行事曆資料？\n\n點擊「確定」：保留舊資料，並與新檔案合併\n點擊「取消」：清空舊資料，完全以這次匯入的檔案為主');
                 
-                const dependentsCount = ref(0);
-                const records = ref([]);
-                const unreadCount = ref(0);
-                const filterType = ref('all');
-                const targetMonth = ref(new Date().toISOString().slice(0, 7));
-                
-                // v8.4.5 新增：月份導覽邏輯 (具備跨年自動換算)
-                const goCurrentMonth = () => {
-                    targetMonth.value = new Date().toISOString().slice(0, 7);
-                };
-                const changeMonth = (delta) => {
-                    const [year, month] = targetMonth.value.split('-').map(Number);
-                    const newDate = new Date(year, (month - 1) + delta, 1);
-                    const y = newDate.getFullYear();
-                    const m = String(newDate.getMonth() + 1).padStart(2, '0');
-                    targetMonth.value = `${y}-${m}`;
-                };
-
-                const employmentStartDate = ref('2023-08-07');
-                const historicalLeave = ref({ annual: 0, sick: 0, personal: 0 });
-                const formData = ref({ date: new Date().toISOString().split('T')[0], type: '', hours: 1 });
-                const bonusData = ref({ date: new Date().toISOString().split('T')[0], type: '', amount: null }); 
-                const modal = ref({ isOpen: false, title: '', message: '', type: 'alert', onConfirm: null });
-                const swipeState = ref({}); 
-
-                // --- 新增：編輯功能專用變數 ---
-                const isEditModalOpen = ref(false);
-                const editFormData = ref({ id: null, date: '', type: '', hours: 0, amount: 0 });
-                
-                // v8.2 隱私遮蔽狀態 (薪資與金額)
-                const isAmountMasked = ref(false);
-
-                // v8.3 雲端憑證遮蔽狀態 (預設遮蔽保護安全)
-                const isCloudMasked = ref(true);
-
-                // v8.0 雲端同步狀態
-                const cloudToken = ref('');
-                const cloudGistId = ref('');
-                const isSyncing = ref(false);
-
-                // --- 鎖定功能狀態 ---
-                const passcodeLength = ref(6); // 預設密碼位數
-                const isAppLocked = ref(true);
-                const inputPasscode = ref(Array(passcodeLength.value).fill(''));
-                const passcodeRefs = ref([]);
-                const passcodeError = ref('');
-                const PASSCODE_KEY = 'HR_APP_PASSCODE';
-                const defaultPasscode = '123456'; // 預設密碼
-                const currentPasscode = ref(localStorage.getItem(PASSCODE_KEY) || defaultPasscode);
-                const newPasscode = ref('');
-
-                const handlePasscodeInput = (index) => {
-                    passcodeError.value = '';
-                    inputPasscode.value[index] = inputPasscode.value[index].replace(/[^0-9]/g, '');
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const text = ev.target.result;
+                    let validCount = 0;
                     
-                    if (inputPasscode.value[index] && index < passcodeLength.value - 1) {
-                        setTimeout(() => { if (passcodeRefs.value[index + 1]) passcodeRefs.value[index + 1].focus(); }, 10);
-                    }
-                    
-                    if (inputPasscode.value.join('').length === passcodeLength.value) {
-                        verifyPasscode();
-                    }
-                };
-
-                const handlePasscodeDelete = (index, event) => {
-                    if (!inputPasscode.value[index] && index > 0) {
-                        setTimeout(() => { if (passcodeRefs.value[index - 1]) passcodeRefs.value[index - 1].focus(); }, 10);
-                    }
-                };
-
-                const verifyPasscode = () => {
-                    const entered = inputPasscode.value.join('');
-                    if (entered === currentPasscode.value) {
-                        isAppLocked.value = false;
-                        inputPasscode.value = Array(passcodeLength.value).fill('');
-                    } else {
-                        passcodeError.value = '密碼錯誤，請重新輸入';
-                        inputPasscode.value = Array(passcodeLength.value).fill('');
-                        if (passcodeRefs.value[0]) passcodeRefs.value[0].focus();
-                    }
-                };
-
-                const updatePasscode = () => {
-                    const regex = new RegExp(`^\\d{${passcodeLength.value}}$`);
-                    if (!regex.test(newPasscode.value)) {
-                        return showAlert('設定失敗', `密碼必須為完整的 ${passcodeLength.value} 位純數字！`);
-                    }
-                    showConfirm('安全確認', `確定要將解鎖密碼變更為 ${newPasscode.value} 嗎？\n請務必牢記。`, () => {
-                        currentPasscode.value = newPasscode.value;
-                        localStorage.setItem(PASSCODE_KEY, currentPasscode.value);
-                        newPasscode.value = '';
-                        showAlert('設定成功', '應用程式密碼已成功更新！');
-                    });
-                };
-                // --- 鎖定功能狀態結束 ---
-                
-                onMounted(() => {
-                    if ('serviceWorker' in navigator) {
-                        navigator.serviceWorker.register('./sw.js').then(reg => {
-                            if (reg.active) isOfflineReady.value = true;
-                            reg.addEventListener('updatefound', () => {
-                                const newWorker = reg.installing;
-                                newWorker.addEventListener('statechange', () => {
-                                    if (newWorker.state === 'activated') isOfflineReady.value = true;
-                                });
-                            });
-                        }).catch(err => console.log('SW Fail', err));
-                    }
-                });
-
-                const STORAGE_KEY = 'HR_APP_DATA_V6';
-                const SYNC_KEY = 'HR_APP_CLOUD_SYNC'; // 用來存金鑰的
-
-                onMounted(() => {
-                    // 讀取薪資資料
-                    const saved = localStorage.getItem(STORAGE_KEY);
-                    if (saved) {
-                        try {
-                            const d = JSON.parse(saved);
-                            monthlySalaries.value = d.monthlySalaries || {};
-                            if (d.monthlySalary !== undefined && Object.keys(monthlySalaries.value).length === 0) {
-                                monthlySalaries.value[targetMonth.value] = d.monthlySalary;
-                            }
-                            dependentsCount.value = d.dependentsCount || 0;
-                            records.value = d.records || [];
-                            historicalLeave.value = d.historicalLeave || { annual: 0, sick: 0, personal: 0 };
-                            employmentStartDate.value = d.employmentStartDate || '2023-08-07';
-                        } catch (e) { console.error("資料讀取失敗"); }
-                    }
-                    
-                    // 讀取雲端金鑰資料
-                    const savedSync = localStorage.getItem(SYNC_KEY);
-                    if (savedSync) {
-                        try {
-                            const syncD = JSON.parse(savedSync);
-                            cloudToken.value = syncD.token || '';
-                            cloudGistId.value = syncD.gistId || '';
-                        } catch (e) { console.error("同步設定讀取失敗"); }
-                    }
-                });
-
-                watch([monthlySalaries, dependentsCount, records, historicalLeave, employmentStartDate], (newVals) => {
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-                        monthlySalaries: newVals[0], dependentsCount: newVals[1], records: newVals[2],
-                        historicalLeave: newVals[3], employmentStartDate: newVals[4]
-                    }));
-                }, { deep: true });
-
-                // 監聽金鑰與代碼變動自動存檔
-                watch([cloudToken, cloudGistId], (newVals) => {
-                    localStorage.setItem(SYNC_KEY, JSON.stringify({ token: newVals[0], gistId: newVals[1] }));
-                });
-
-                const showConfirm = (t, m, c) => modal.value = { isOpen: true, title: t, message: m, type: 'confirm', onConfirm: c };
-                const showAlert = (t, m) => modal.value = { isOpen: true, title: t, message: m, type: 'alert', onConfirm: null };
-                const handleModalConfirm = () => { if (modal.value.onConfirm) modal.value.onConfirm(); modal.value.isOpen = false; };
-                // v8.4 修正：僅重置曆年制的病事假，保留週年制的特休
-                const resetHistoricalLeave = () => showConfirm(
-                    '年度重置確認', 
-                    '現在是新的一年嗎？\n此動作將僅歸零「病假」與「事假」的期初時數，\n特休假將依到職日保留，不予變動。', 
-                    () => {
-                        historicalLeave.value.sick = 0;
-                        historicalLeave.value.personal = 0;
-                        showAlert('重置成功', '病假與事假已完成 1/1 曆年制歸零！');
-                    }
-                );
-
-                let pressTimer = null;
-                const startPress = (type) => {
-                    if (type === 'insurance') {
-                        pressTimer = setTimeout(() => {
-                            // 隱私遮蔽防呆攔截
-                            if (isAmountMasked.value) {
-                                return showAlert('隱私保護', '已開啟金額遮蔽功能，無法查看保險級距詳細資訊。');
-                            }
-                            
-                            if (!monthlySalary.value || monthlySalary.value <= 0) {
-                                showAlert('級距資訊', '目前無基本薪資，免扣保費。');
-                            } else {
-                                showAlert('採計投保級距', `目前基本薪資：NT$ ${monthlySalary.value.toLocaleString()}\n\n勞保對應級距：NT$ ${laborBracket.value.toLocaleString()}\n健保對應級距：NT$ ${healthBracket.value.toLocaleString()}`);
-                            }
-                        }, 500); 
-                    }
-                };
-                const cancelPress = () => { clearTimeout(pressTimer); };
-
-                let startX = 0;
-                let currentX = 0;
-                const touchStart = (e, id) => {
-                    startX = e.touches[0].clientX;
-                    currentX = swipeState.value[id] || 0;
-                    Object.keys(swipeState.value).forEach(k => { if(k !== String(id)) swipeState.value[k] = 0; }); 
-                };
-                const touchMove = (e, id) => {
-                    const diff = e.touches[0].clientX - startX;
-                    let newX = currentX + diff;
-                    if (newX > 0) newX = 0; 
-                    // 放寬滑動極限，允許手指往左滑動更遠
-                    if (newX < -140) newX = -140; 
-                    swipeState.value[id] = newX;
-                };
-                const touchEnd = (id) => {
-                    if (swipeState.value[id] < -45) {
-                        // 煞車點改為 -128px (對應 w-32 的寬度)，讓兩顆按鈕完整露出
-                        swipeState.value[id] = -128; 
-                    } else {
-                        swipeState.value[id] = 0; 
-                    }
-                };
-
-                const annualLeaveTotalHours = computed(() => {
-                    const diffYears = (new Date() - new Date(employmentStartDate.value)) / (1000 * 60 * 60 * 24 * 365.25);
-                    let days = 0;
-                    if (diffYears >= 0.5 && diffYears < 1) days = 3;
-                    else if (diffYears >= 1 && diffYears < 2) days = 7;
-                    else if (diffYears >= 2 && diffYears < 3) days = 10;
-                    else if (diffYears >= 3 && diffYears < 5) days = 14;
-                    else if (diffYears >= 5 && diffYears < 10) days = 15;
-                    else if (diffYears >= 10) days = Math.min(30, 15 + Math.floor(diffYears) - 9);
-                    return days * 8;
-                });
-                // v8.4 修正：特休加入「週年制」時間過濾邏輯
-                const leaveUsed = computed(() => {
-                    const u = { annual: 0, sick: historicalLeave.value.sick, personal: historicalLeave.value.personal };
-                    
-                    // 計算最近一次特休產生基準日 (判斷現在是在哪個週年年度)
-                    const now = new Date();
-                    const start = new Date(employmentStartDate.value);
-                    let baseDate = new Date(now.getFullYear(), start.getMonth(), start.getDate());
-                    if (baseDate > now) baseDate.setFullYear(baseDate.getFullYear() - 1);
-
-                    records.value.forEach(r => {
-                        const recDate = new Date(r.date);
-                        if (r.type === 'annual') {
-                            // 關鍵：特休僅計算基準日之後的紀錄，自動結清舊年度
-                            if (recDate >= baseDate) u.annual += r.hours;
-                        } else if (u[r.type] !== undefined) {
-                            u[r.type] += r.hours;
-                        }
-                    });
-                    
-                    // 加上手動填寫的期初特休
-                    u.annual += historicalLeave.value.annual;
-                    return u;
-                });
-                const leaveLimits = computed(() => ({ annual: annualLeaveTotalHours.value, sick: 240, personal: 112 }));
-                const leaveBalance = computed(() => ({ annual: Math.max(0, leaveLimits.value.annual - leaveUsed.value.annual), sick: Math.max(0, leaveLimits.value.sick - leaveUsed.value.sick), personal: Math.max(0, leaveLimits.value.personal - leaveUsed.value.personal) }));
-                const formatDaysHours = (h) => h % 8 === 0 ? `${h / 8}天` : `${Math.floor(h / 8)}天${h % 8}h`;
-                const hourlyWage = computed(() => { if (!monthlySalary.value || monthlySalary.value <= 0) return 0; return Math.round(monthlySalary.value / 240); });
-                const getBracket = (s, tbl) => { if (!s || s <= 0) return 0; if (s < tbl[0]) return tbl[0]; for (let b of tbl) { if (s <= b) return b; } return tbl[tbl.length - 1]; };
-                const laborBracket = computed(() => getBracket(monthlySalary.value, [29500, 30300, 31800, 33300, 34800, 36300, 38200, 40100, 42000, 43900, 45800]));
-                const healthBracket = computed(() => getBracket(monthlySalary.value, [29500, 30300, 31800, 33300, 34800, 36300, 38200, 40100, 42000, 43900, 45800, 48200, 50600, 53000, 55400, 57800, 60800, 63800, 66800, 69800, 72800, 76500, 80200, 83900, 87600, 92100, 96600, 101100, 105600, 110100, 115500, 120900, 126300, 131700, 137100, 142500, 147900, 219500]));
-                const laborFee = computed(() => Math.round(laborBracket.value * 0.125 * 0.2));
-                const healthFee = computed(() => Math.round(healthBracket.value * 0.0517 * 0.3) * (1 + dependentsCount.value));
-
-                const addRecord = () => {
-                    if (!formData.value.type) return showAlert('警告', '請選擇出勤類別');
-                    
-                    // 1. 修正跨月申報 Bug：根據「發生日期」抓取正確月份的底薪，避免用到報表當前觀看月份的薪資
-                    const recordMonth = formData.value.date.substring(0, 7);
-                    let recordSalary = monthlySalaries.value[recordMonth];
-                    if (recordSalary === undefined) {
-                        // 若該月未設定薪資，自動往回找最近一個月的底薪
-                        const pastMonths = Object.keys(monthlySalaries.value).filter(m => m < recordMonth).sort().reverse();
-                        recordSalary = pastMonths.length > 0 ? monthlySalaries.value[pastMonths[0]] : 29500;
-                    }
-                    const exactHourlyWage = Math.round(recordSalary / 240); // 取得當下時薪
-
-                    // 2. 精確的扣款與加班費計算
-                    const calcAmt = (t, h, w) => {
-                        if (t === 'annual') return 0;
-                        if (t === 'personal') return -Math.round(w * h);
-                        if (t === 'sick') return -Math.round((w / 2) * h);
-                        
-                        // 勞基法標準倍率：4/3 (約 1.333) 與 5/3 (約 1.666)
-                        // 💡 若貴公司 HR 真的是用 1.34 與 1.67 算給您，請自行將 4/3 改為 1.34，5/3 改為 1.67
-                        const rate1 = 4 / 3; 
-                        const rate2 = 5 / 3;
-                        
-                        if (h <= 2) {
-                            return Math.round(w * rate1 * h);
-                        } else {
-                            return Math.round((w * rate1 * 2) + (w * rate2 * (h - 2)));
-                        }
-                    };
-
-                    // 將計算完的正確金額寫入資料庫
-                    records.value.push({ 
-                        id: Date.now(), 
-                        date: formData.value.date, 
-                        type: formData.value.type, 
-                        hours: formData.value.hours, 
-                        amount: calcAmt(formData.value.type, formData.value.hours, exactHourlyWage) 
-                    });
-                    
-                    unreadCount.value++; 
-                    formData.value = { date: new Date().toISOString().split('T')[0], type: '', hours: 1 };
-                };
-
-                // 👇👇👇 請把這整塊遺失的積木貼回這裡 👇👇👇
-                const addBonusRecord = () => {
-                    if (!bonusData.value.type) return showAlert('警告', '請選擇獎金名目');
-                    if (!bonusData.value.amount || bonusData.value.amount <= 0) return showAlert('警告', '請輸入有效金額');
-                    
-                    records.value.push({ 
-                        id: Date.now(), 
-                        date: bonusData.value.date, 
-                        type: bonusData.value.type, 
-                        hours: 0, 
-                        amount: bonusData.value.amount 
-                    });
-                    
-                    unreadCount.value++; 
-                    bonusData.value = { date: new Date().toISOString().split('T')[0], type: '', amount: null };
-                };
-                // 👆👆👆 遺失的積木結束 👆👆👆
-
-                // --- 新增：開啟編輯彈窗並載入資料 ---
-                const openEditModal = (record) => {
-                    editFormData.value = { ...record };
-                    isEditModalOpen.value = true;
-                    Object.keys(swipeState.value).forEach(k => swipeState.value[k] = 0);
-                };
-
-                // --- 新增：執行儲存修改 (包含浮動重算) ---
-                const saveEdit = () => {
-                    if (!editFormData.value.type) return showAlert('警告', '請選擇類別');
-                    
-                    const recordMonth = editFormData.value.date.substring(0, 7);
-                    let recordSalary = monthlySalaries.value[recordMonth];
-                    if (recordSalary === undefined) {
-                        const pastMonths = Object.keys(monthlySalaries.value).filter(m => m < recordMonth).sort().reverse();
-                        recordSalary = pastMonths.length > 0 ? monthlySalaries.value[pastMonths[0]] : 29500;
-                    }
-                    const w = Math.round(recordSalary / 240);
-                    const h = editFormData.value.hours;
-                    const t = editFormData.value.type;
-
-                    let finalAmt = 0;
-                    if (t.startsWith('bonus')) {
-                        finalAmt = editFormData.value.amount;
-                    } else if (t === 'annual') {
-                        finalAmt = 0;
-                    } else if (t === 'personal') {
-                        finalAmt = -Math.round(w * h);
-                    } else if (t === 'sick') {
-                        finalAmt = -Math.round((w / 2) * h);
-                    } else if (t === 'overtime') {
-                        const r1 = 4 / 3; const r2 = 5 / 3;
-                        finalAmt = h <= 2 ? Math.round(w * r1 * h) : Math.round((w * r1 * 2) + (w * r2 * (h - 2)));
-                    }
-
-                    const index = records.value.findIndex(r => r.id === editFormData.value.id);
-                    if (index !== -1) {
-                        records.value[index] = { ...editFormData.value, amount: finalAmt };
-                        isEditModalOpen.value = false;
-                        showAlert('成功', '紀錄已成功更新並重新結算金額');
-                    }
-                };
-
-                const removeRecord = (id) => {
-                    showConfirm('刪除確認', '確定移除此筆紀錄？', () => {
-                        records.value = records.value.filter(r => r.id !== id);
-                        swipeState.value[id] = 0; 
-                    });
-                };
-
-                const monthlyRecords = computed(() => records.value.filter(r => r.date.startsWith(targetMonth.value)));
-                const getMonthlySum = (type) => monthlyRecords.value.filter(r => r.type === type).reduce((sum, r) => sum + r.amount, 0);
-                const getBonusSum = () => monthlyRecords.value.filter(r => r.type.startsWith('bonus')).reduce((sum, r) => sum + r.amount, 0);
-                const estimatedFinalSalary = computed(() => (monthlySalary.value || 0) + getMonthlySum('sick') + getMonthlySum('personal') + getMonthlySum('overtime') + getBonusSum() - laborFee.value - healthFee.value);
-
-                const filteredAndSortedRecords = computed(() => { 
-                    let r = monthlyRecords.value; 
-                    if (filterType.value === 'bonus') r = r.filter(x => x.type.startsWith('bonus'));
-                    else if (filterType.value !== 'all') r = r.filter(x => x.type === filterType.value);
-                    return r.sort((a, b) => new Date(b.date) - new Date(a.date)); 
-                });
-
-                const typeNameMap = { 'annual':'特休', 'sick':'病假', 'personal':'事假', 'overtime':'加班', 'bonus_festival':'三節', 'bonus_incentive':'激勵', 'bonus_yearend':'年終', 'bonus_birthday':'生日禮金' };
-                const getTypeName = (t) => typeNameMap[t] || '未知';
-                const getTypeBadgeClass = (t) => t.startsWith('bonus') ? 'bg-yellow-100 text-yellow-700' : ({ 'annual':'bg-blue-100 text-blue-700', 'sick':'bg-amber-100 text-amber-700', 'personal':'bg-red-100 text-red-700', 'overtime':'bg-emerald-100 text-emerald-700' }[t] || 'bg-gray-100');
-                
-                // 【新增區塊】：監聽各月薪資變動，並自動「精準重算」對應月份的紀錄
-                watch(monthlySalaries, (newSalaries) => {
-                    records.value = records.value.map(r => {
-                        // 獎金與特休的金額是固定的，不需要重算
-                        if (r.type.startsWith('bonus') || r.type === 'annual') return r; 
-                        
-                        // 找出這筆紀錄所屬月份的正確底薪
-                        const recMonth = r.date.substring(0, 7);
-                        let s = newSalaries[recMonth];
-                        if (s === undefined) {
-                            const past = Object.keys(newSalaries).filter(m => m < recMonth).sort().reverse();
-                            s = past.length > 0 ? newSalaries[past[0]] : 29500;
-                        }
-                        
-                        // 計算精確時薪
-                        const exactHourlyWage = Math.round(s / 240);
-                        
-                        // 重新套用勞基法標準倍率計算
-                        const calcAmt = (t, h, w) => {
-                            if (t === 'personal') return -Math.round(w * h);
-                            if (t === 'sick') return -Math.round((w / 2) * h);
-                            const rate1 = 4 / 3; 
-                            const rate2 = 5 / 3;
-                            return Math.round(h <= 2 ? (w * rate1 * h) : (w * rate1 * 2) + (w * rate2 * (h - 2)));
-                        };
-                        
-                        // 覆寫更新該筆紀錄的金額
-                        return { ...r, amount: calcAmt(r.type, r.hours, exactHourlyWage) };
-                    });
-                }, { deep: true });
-
-                watch(currentPage, (p) => { if (p === 'report') unreadCount.value = 0; });
-
-                const exportData = () => {
-                    const dataToSave = { monthlySalaries: monthlySalaries.value, dependentsCount: dependentsCount.value, employmentStartDate: employmentStartDate.value, historicalLeave: historicalLeave.value, records: records.value };
-                    const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: "application/json" });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a'); a.href = url; a.download = `HR紀錄_${new Date().toISOString().split('T')[0]}.json`;
-                    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-                };
-
-                const importData = (event) => {
-                    const file = event.target.files[0];
-                    if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        try {
-                            const d = JSON.parse(e.target.result);
-                            monthlySalaries.value = d.monthlySalaries || {};
-                            if (d.monthlySalary !== undefined && Object.keys(monthlySalaries.value).length === 0) {
-                                monthlySalaries.value[targetMonth.value] = d.monthlySalary;
-                            }
-                            dependentsCount.value = d.dependentsCount || 0;
-                            employmentStartDate.value = d.employmentStartDate || '2023-08-07';
-                            historicalLeave.value = d.historicalLeave || { annual: 0, sick: 0, personal: 0 };
-                            records.value = d.records || [];
-                            showAlert('還原成功', '歷史紀錄與設定已成功載入！');
-                        } catch { showAlert('匯入失敗', '檔案格式錯誤。'); }
-                        event.target.value = ''; 
-                    };
-                    reader.readAsText(file);
-                };
-
-                // --- v8.0 GitHub 雲端同步核心邏輯 ---
-                const uploadToCloud = async () => {
-                    if (!cloudToken.value) return showAlert('同步失敗', '請先輸入有效的 GitHub 金鑰 (Personal Access Token)');
-                    isSyncing.value = true;
-                    
-                   const dataToSave = {
-                        monthlySalaries: monthlySalaries.value,
-                        dependentsCount: dependentsCount.value,
-                        employmentStartDate: employmentStartDate.value,
-                        historicalLeave: historicalLeave.value,
-                        records: records.value
-                    };
-                    const content = JSON.stringify(dataToSave, null, 2);
+                    // 根據使用者的選擇，決定是繼承舊資料還是給予空物件
+                    const newHolidays = keepOld ? { ...(data.holidays || {}) } : {};
 
                     try {
-                        const headers = {
-                            'Authorization': `Bearer ${cloudToken.value}`,
-                            'Accept': 'application/vnd.github.v3+json',
-                            'Content-Type': 'application/json'
-                        };
+                        // 判斷是否為 CSV 檔案
+                        if (file.name.toLowerCase().endsWith('.csv')) {
+                            // 處理 CSV 格式 (支援 Excel 轉存的格式)
+                            const lines = text.split('\n').filter(line => line.trim().length > 0);
+                            if (lines.length > 1) {
+                                // 將標題列轉小寫並清掉引號以利比對
+                                const headers = lines[0].split(',').map(h => h.trim().replace(/["\r]/g, '').toLowerCase());
+                                const dateIdx = headers.findIndex(h => h === 'date' || h.includes('日期'));
+                                const holidayIdx = headers.findIndex(h => h === 'isholiday' || h.includes('放假') || h === 'is_holiday');
 
-                        if (cloudGistId.value) {
-                            // 雲端代碼已存在，執行更新 (PATCH)
-                            const res = await fetch(`https://api.github.com/gists/${cloudGistId.value}`, {
-                                method: 'PATCH',
-                                headers,
-                                body: JSON.stringify({
-                                    files: { 'hr_data_sync.json': { content } }
-                                })
-                            });
-                            if (!res.ok) throw new Error('API連線失敗');
-                            showAlert('雲端上傳成功', '您的資料已成功覆蓋至 GitHub 雲端！');
+                                if (dateIdx !== -1 && holidayIdx !== -1) {
+                                    for (let i = 1; i < lines.length; i++) {
+                                        // 簡單以逗號分割 (政府日期與是否放假欄位通常不會有內建逗號)
+                                        const cols = lines[i].split(',');
+                                        if (cols.length > Math.max(dateIdx, holidayIdx)) {
+                                            const dateVal = cols[dateIdx].replace(/["\r]/g, '').trim();
+                                            const isH = cols[holidayIdx].replace(/["\r]/g, '').trim();
+                                            
+                                            // 濾除非日期的雜訊列
+                                            const rawDate = dateVal.replace(/[\/\-]/g, '');
+                                            if (rawDate.length === 8 && !isNaN(rawDate)) {
+                                                const y = rawDate.substring(0, 4);
+                                                const m = rawDate.substring(4, 6);
+                                                const d = rawDate.substring(6, 8);
+                                                // 政府檔案通常標示 "是" 代表放假，增加 boolean 判斷相容性
+                                                const isHolidayBool = (isH === '是' || String(isH).toLowerCase() === 'true' || isH === '1' || String(isH).toLowerCase() === 'y');
+                                                newHolidays[`${y}-${m}-${d}`] = isHolidayBool;
+                                                validCount++;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         } else {
-                            // 第一次同步，建立新的 Gist (POST)
-                            const res = await fetch('https://api.github.com/gists', {
-                                method: 'POST',
-                                headers,
-                                body: JSON.stringify({
-                                    description: 'HR_Attendance_Cloud_Sync',
-                                    public: false, // 設為私密
-                                    files: { 'hr_data_sync.json': { content } }
-                                })
-                            });
-                            if (!res.ok) throw new Error('API連線失敗');
-                            const resData = await res.json();
-                            cloudGistId.value = resData.id; // 自動填入新產生的 Gist ID
-                            showAlert('雲端建立成功', `已在您的 GitHub 建立專屬私密資料夾！\n\n您的專屬雲端代碼為：\n${resData.id}\n\n請將此代碼複製到其他裝置，即可進行雙向同步。`);
-                        }
-                    } catch (err) {
-                        showAlert('上傳失敗', '連線錯誤，請確認您的金鑰 (Token) 是否正確，並且擁有存取 gists 的權限。');
-                    } finally {
-                        isSyncing.value = false;
-                    }
-                };
+                            // 處理 JSON 格式：升級為動態鍵值掃描，解決不同年份 JSON 欄位命名或布林值不同的問題
+                            const imported = JSON.parse(text);
+                            imported.forEach(item => {
+                                // 動態尋找包含 date 或日期的 key
+                                const dateKey = Object.keys(item).find(k => k.toLowerCase() === 'date' || k.includes('日期'));
+                                // 動態尋找包含 isholiday 或放假的 key
+                                const holidayKey = Object.keys(item).find(k => k.toLowerCase().includes('isholiday') || k.toLowerCase().includes('is_holiday') || k.includes('放假'));
 
-                const downloadFromCloud = async () => {
-                    if (!cloudToken.value || !cloudGistId.value) {
-                        return showAlert('同步失敗', '請確認「GitHub 金鑰」與「雲端代碼 (Gist ID)」皆已填寫！');
-                    }
-                    
-                    showConfirm('下載確認', '執行下載將會「完全覆蓋」您這台裝置上目前的資料，確定要繼續嗎？', async () => {
-                        isSyncing.value = true;
-                        try {
-                            const res = await fetch(`https://api.github.com/gists/${cloudGistId.value}`, {
-                                headers: {
-                                    'Authorization': `Bearer ${cloudToken.value}`,
-                                    'Accept': 'application/vnd.github.v3+json'
+                                if (dateKey && holidayKey) {
+                                    const dateVal = item[dateKey];
+                                    const isH = item[holidayKey];
+
+                                    if (dateVal !== undefined && isH !== undefined && dateVal !== null) {
+                                        const rawDate = String(dateVal).replace(/[\/\-]/g, '');
+                                        if (rawDate.length === 8 && !isNaN(rawDate)) {
+                                            const y = rawDate.substring(0, 4);
+                                            const m = rawDate.substring(4, 6);
+                                            const d = rawDate.substring(6, 8);
+                                            // 支援多種放假標記格式 (字串"是", "True", 布林值 true, 數字 1)
+                                            const isHolidayBool = (isH === '是' || isH === true || String(isH).toLowerCase() === 'true' || isH === '1' || String(isH).toLowerCase() === 'y');
+                                            newHolidays[`${y}-${m}-${d}`] = isHolidayBool;
+                                            validCount++;
+                                        }
+                                    }
                                 }
                             });
-                            
-                            if (!res.ok) throw new Error('API連線失敗');
-                            
-                            const resData = await res.json();
-                            const contentStr = resData.files['hr_data_sync.json'].content;
-                            const d = JSON.parse(contentStr);
-                            
-                            // 安全寫入本機資料
-                            monthlySalaries.value = d.monthlySalaries || {};
-                            if (d.monthlySalary !== undefined && Object.keys(monthlySalaries.value).length === 0) {
-                                monthlySalaries.value[targetMonth.value] = d.monthlySalary;
-                            }
-                            dependentsCount.value = d.dependentsCount || 0;
-                            employmentStartDate.value = d.employmentStartDate || '2023-08-07';
-                            historicalLeave.value = d.historicalLeave || { annual: 0, sick: 0, personal: 0 };
-                            records.value = d.records || [];
-                            
-                            showAlert('還原成功', '雲端資料已成功下載，並覆蓋本機設定！');
-                        } catch (err) {
-                            showAlert('下載失敗', '連線錯誤，請確認金鑰與代碼是否正確，或檔案已被刪除。');
-                        } finally {
-                            isSyncing.value = false;
                         }
-                    });
-                };
 
-                return { 
-                    isOfflineReady, currentPage, monthlySalary, dependentsCount, hourlyWage, laborBracket, healthBracket, laborFee, healthFee, 
-                    formData, bonusData, records, monthlyRecords, filteredAndSortedRecords, filterType, targetMonth, unreadCount, 
-                    modal, handleModalConfirm, showConfirm, showAlert, addRecord, addBonusRecord, removeRecord, 
-                    getMonthlySum, getBonusSum, estimatedFinalSalary,
-                    getTypeName, getTypeBadgeClass, employmentStartDate, historicalLeave, leaveLimits, leaveUsed, leaveBalance, formatDaysHours, resetHistoricalLeave,
-                    startPress, cancelPress, touchStart, touchMove, touchEnd, swipeState, exportData, importData,
-                    cloudToken, cloudGistId, isSyncing, uploadToCloud, downloadFromCloud,
-                    isAmountMasked, // v8.2 導出隱私遮蔽狀態
-                    isCloudMasked, // v8.3 導出雲端憑證遮蔽狀態
-                    passcodeLength, isAppLocked, inputPasscode, passcodeRefs, passcodeError, handlePasscodeInput, handlePasscodeDelete, newPasscode, updatePasscode, 
-                    openEditModal, saveEdit, isEditModalOpen, editFormData,
-                    goCurrentMonth, changeMonth // v8.4.5 導出月份導覽函式
+                        if (validCount === 0) {
+                            alert('匯入警告：未能解析任何假日資料！請確認檔案為政府下載之 CSV 或 JSON，且包含「日期」與「是否放假」欄位。');
+                            return;
+                        }
+
+                        syncToCloud({ ...data, holidays: newHolidays }, true);
+                        alert(`年度行事曆載入成功！共匯入 ${validCount} 筆資料。`);
+                    } catch (err) { 
+                        alert('匯入失敗，請確認檔案格式是否正確。'); 
+                        console.error(err);
+                    }
+                    e.target.value = ''; // 清空檔案選擇器
                 };
-            }
-        }).mount('#app');
+                
+                // 以 UTF-8 讀取。若您的 CSV 匯入後顯示 0 筆，請確認檔案編碼是否為 UTF-8
+                reader.readAsText(file, 'UTF-8');
+            };
+
+            const handleJSONImport = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    try {
+                        const imported = JSON.parse(ev.target.result);
+                        // 自動相容新舊版格式 (保留新版特有欄位)
+                        const mergedData = {
+                            ...data,
+                            passcode: imported.passcode || data.passcode,
+                            gasUrl: imported.gasUrl || data.gasUrl,
+                            monthlySalaries: imported.monthlySalaries || {},
+                            dependentsCount: imported.dependentsCount || 0,
+                            employmentStartDate: imported.employmentStartDate || '2023-08-07',
+                            historicalLeave: imported.historicalLeave || { annual: 0, sick: 0, personal: 0 },
+                            records: imported.records || [],
+                            holidays: imported.holidays || data.holidays || {}
+                        };
+                        syncToCloud(mergedData, true);
+                        alert('備份紀錄與設定已成功載入！');
+                    } catch (err) { alert('匯入失敗，檔案格式錯誤。'); }
+                    e.target.value = '';
+                };
+                reader.readAsText(file);
+            };
+
+            const renderEmployee = () => (
+                <div className="fade-in max-w-3xl mx-auto space-y-6">
+                    <h2 className="text-xl font-bold text-gray-800 mb-6">員工管理與系統設定</h2>
+                    
+                    <div className="card-data-container border-t-4 border-[var(--primary)]">
+                        <h3 className="text-lg font-bold text-gray-800 mb-4">基本參數設定</h3>
+                        <div className="grid grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 mb-1">當月設定底薪 (NT$)</label>
+                                <input type="number" value={currentSalary} onChange={e => syncToCloud({...data, monthlySalaries: {...data.monthlySalaries, [targetMonth]: Number(e.target.value)}})} className="w-full px-3 py-2 border rounded-lg font-bold focus:border-[var(--primary)] outline-none" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 mb-1">健保依附人數</label>
+                                <select value={data.dependentsCount} onChange={e => syncToCloud({...data, dependentsCount: Number(e.target.value)})} className="w-full px-3 py-2 border rounded-lg font-bold bg-white focus:border-[var(--primary)] outline-none">
+                                    <option value="0">僅保本人</option>
+                                    <option value="1">1 位眷屬</option>
+                                    <option value="2">2 位眷屬</option>
+                                    <option value="3">3 位(含)以上</option>
+                                </select>
+                            </div>
+                            <div className="col-span-2">
+                                <label className="block text-xs font-bold text-gray-500 mb-1">到職日 (用於計算特休週年制)</label>
+                                <input type="date" value={data.employmentStartDate} onChange={e => syncToCloud({...data, employmentStartDate: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold focus:border-[var(--primary)] outline-none" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="card-data-container border-t-4 border-slate-700">
+                        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="database" className="text-slate-600"></i> 資料轉移與雲端備份</h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 mb-1">GAS 雲端資料庫網址 (Web App URL)</label>
+                                <input type="text" value={data.gasUrl} onChange={e => syncToCloud({...data, gasUrl: e.target.value})} placeholder="https://script.google.com/macros/s/..." className="w-full px-3 py-2 border rounded-lg font-bold focus:border-[var(--primary)] outline-none text-xs text-blue-600 bg-blue-50/50" />
+                            </div>
+                            <div className="flex gap-4 pt-2">
+                                <div className="flex-1 relative">
+                                    <input type="file" onChange={handleJSONImport} accept="application/json" className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                                    <div className="h-full bg-emerald-50 border border-emerald-200 py-3 rounded-xl font-bold text-sm text-center text-emerald-700 shadow-sm flex items-center justify-center gap-2 pointer-events-none transition-all">
+                                        <i data-lucide="upload-cloud"></i> 匯入備份 (支援新/舊版)
+                                    </div>
+                                </div>
+                                <div className="flex-1 relative">
+                                    <input type="file" onChange={handleHolidayImport} accept=".json,.csv,application/json,text/csv" className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                                    <div className="h-full bg-orange-50 border border-orange-200 py-3 rounded-xl font-bold text-sm text-center text-orange-700 shadow-sm flex items-center justify-center gap-2 pointer-events-none transition-all">
+                                        <i data-lucide="calendar"></i> 匯入年度行事曆
+                                    </div>
+                                </div>
+                                <button onClick={() => {
+                                    if(window.confirm('確定要清空系統內所有的行事曆資料嗎？\n出勤天數將恢復預設的週休二日計算。')) {
+                                        syncToCloud({...data, holidays: {}});
+                                        alert('已成功清空所有行事曆資料！請重新匯入正確的檔案。');
+                                    }
+                                }} className="flex-1 bg-red-50 border border-red-200 py-3 rounded-xl font-bold text-sm text-center text-red-700 shadow-sm flex items-center justify-center gap-2 hover:bg-red-100 transition-all">
+                                    <i data-lucide="trash-2"></i> 清空行事曆
+                                </button>
+                                <button onClick={() => {
+                                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement('a'); a.href = url; a.download = `HR_Fusion_Backup_${new Date().toISOString().split('T')[0]}.json`;
+                                    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+                                }} className="flex-1 bg-indigo-50 border border-indigo-200 py-3 rounded-xl font-bold text-sm text-center text-indigo-700 shadow-sm flex items-center justify-center gap-2 hover:bg-indigo-100 transition-all">
+                                    <i data-lucide="download-cloud"></i> 下載本機存檔
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="card-data-container border-2 border-red-100">
+                        <h3 className="text-lg font-bold text-red-600 mb-4 flex items-center gap-2"><i data-lucide="shield-alert" className="text-red-500"></i> 系統安全設定</h3>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 mb-1">變更解鎖密碼 (6碼數字)</label>
+                            <input type="password" maxLength={6} placeholder="輸入新密碼" onBlur={e => {
+                                if(e.target.value.length === 6) { syncToCloud({...data, passcode: e.target.value}); alert('密碼更新成功'); e.target.value=''; }
+                            }} className="w-full px-3 py-2 border rounded-lg font-bold tracking-widest text-center focus:border-red-400 outline-none" />
+                        </div>
+                    </div>
+                </div>
+            );
+
+            // 主畫面路由控制
+            if (isLocked) return <LockScreen onUnlock={handleUnlock} error={lockError} />;
+
+            const navItems = [
+                { id: 'dashboard', label: '首頁總覽', icon: 'layout-dashboard' },
+                { id: 'clockin', label: '出勤打卡', icon: 'clock' },
+                { id: 'records', label: '出勤紀錄', icon: 'file-text' },
+                { id: 'leave', label: '請假管理', icon: 'plane' },
+                { id: 'salary', label: '薪資查詢', icon: 'calculator' },
+                { id: 'employee', label: '員工管理', icon: 'users' },
+            ];
+
+            return (
+                <div className="flex min-h-screen">
+                    <div className="w-64 bg-[#1E293B] h-screen flex flex-col justify-between fixed left-0 top-0 text-sm z-40">
+                        <div>
+                            <div className="flex items-center gap-3 p-6 text-white text-xl font-bold">
+                                <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#1E293B]">▲</div>
+                                <div className="flex flex-col">
+                                    <span>HR 出勤系統</span>
+                                    <span className="text-[10px] text-gray-400 font-normal">v0.0.0.0.1</span>
+                                </div>
+                            </div>
+                            <nav className="px-4 space-y-2 mt-4">
+                                {navItems.map(item => (
+                                    <button key={item.id} onClick={() => setCurrentView(item.id)} className={`w-full flex items-center gap-3 px-4 py-3 ${currentView === item.id ? 'sidebar-item-active' : 'sidebar-item'}`}>
+                                        <i data-lucide={item.icon} className="w-5 h-5"></i> {item.label}
+                                    </button>
+                                ))}
+                            </nav>
+                        </div>
+                    </div>
+                    
+                    <div className="flex-1 flex flex-col ml-64 bg-[var(--surface)] relative">
+                        <header className="h-20 bg-white flex items-center justify-between px-8 border-b border-gray-100 sticky top-0 z-10">
+                            <div className="flex items-center gap-4">
+                                <h1 className="text-xl font-semibold text-gray-800">{navItems.find(n => n.id === currentView)?.label}</h1>
+                                {isLoading && <div className="loader ml-4"></div>}
+                            </div>
+                            <div className="flex items-center gap-6">
+                                <button onClick={() => setIsAmountMasked(!isAmountMasked)} className="text-gray-500 hover:text-[var(--primary)] transition-colors" title="隱私遮蔽">
+                                    <i data-lucide={isAmountMasked ? 'eye-off' : 'eye'} className="w-5 h-5"></i>
+                                </button>
+                                <button onClick={fetchFromCloud} className="btn-outline-action px-4 py-2 rounded-md text-xs flex items-center gap-2 font-bold">
+                                    <i data-lucide="refresh-cw" className="w-4 h-4"></i> 雲端同步
+                                </button>
+                            </div>
+                        </header>
+                        
+                        <main className="p-8 pb-12 flex-1 relative">
+                            {currentView === 'dashboard' && renderDashboard()}
+                            {currentView === 'clockin' && renderForms()}
+                            {currentView === 'records' && renderRecords()}
+                            {currentView === 'leave' && renderLeave()}
+                            {currentView === 'salary' && renderSalary()}
+                            {currentView === 'employee' && renderEmployee()}
+                        </main>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
