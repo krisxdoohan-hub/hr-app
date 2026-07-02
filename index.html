@@ -367,8 +367,8 @@
             const renderDashboard = () => (
                 <div className="fade-in">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                        <h2 className="text-xl font-bold text-gray-800">首頁總覽</h2>
-                        <input type="month" value={targetMonth} onChange={(e) => setTargetMonth(e.target.value)} className="w-full md:w-auto px-4 py-2 border rounded-lg font-bold text-gray-700 outline-none focus:border-[var(--primary)]" />
+                        <h2 className="hidden md:block text-xl font-bold text-gray-800">首頁總覽</h2>
+                        <input type="month" value={targetMonth} onChange={(e) => setTargetMonth(e.target.value)} className="w-full md:w-auto px-4 py-2 border rounded-lg font-bold text-gray-700 outline-none focus:border-[var(--primary)] bg-white shadow-sm" />
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6">
@@ -558,7 +558,7 @@
 
             const renderForms = () => (
                 <div className="fade-in max-w-4xl mx-auto space-y-6">
-                    <h2 className="text-xl font-bold text-gray-800 mb-6">出勤打卡與申報</h2>
+                    <h2 className="hidden md:block text-xl font-bold text-gray-800 mb-6">出勤打卡與申報</h2>
                     
                     <div className="card-data-container border-l-4 border-blue-500 mb-6 flex flex-col md:flex-row justify-between md:items-center bg-blue-50/30 gap-4">
                         <div>
@@ -621,8 +621,8 @@
             const renderRecords = () => (
                 <div className="fade-in card-data-container">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                        <h2 className="text-xl font-bold text-gray-800">出勤紀錄與異動明細</h2>
-                        <input type="month" value={targetMonth} onChange={(e) => setTargetMonth(e.target.value)} className="w-full md:w-auto px-4 py-2 border rounded-lg font-bold text-gray-700 outline-none focus:border-[var(--primary)]" />
+                        <h2 className="hidden md:block text-xl font-bold text-gray-800">出勤紀錄與異動明細</h2>
+                        <input type="month" value={targetMonth} onChange={(e) => setTargetMonth(e.target.value)} className="w-full md:w-auto px-4 py-2 border rounded-lg font-bold text-gray-700 outline-none focus:border-[var(--primary)] bg-white shadow-sm" />
                     </div>
                     <div className="w-full overflow-x-auto touch-pan-x">
                         <table className="w-full text-center text-sm min-w-[800px]">
@@ -711,7 +711,7 @@
 
             const renderLeave = () => (
                 <div className="fade-in max-w-4xl mx-auto">
-                    <h2 className="text-xl font-bold text-gray-800 mb-6">請假管理與假別設定</h2>
+                    <h2 className="hidden md:block text-xl font-bold text-gray-800 mb-6">請假管理與假別設定</h2>
                     
                     <div className="card-data-container border-l-4 border-[#E67E22] mb-6">
                         <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="plane" className="text-[#E67E22]"></i> 請假申報</h3>
@@ -767,7 +767,7 @@
 
             const renderSalary = () => (
                 <div className="fade-in max-w-3xl mx-auto space-y-6">
-                    <h2 className="text-xl font-bold text-gray-800 mb-6">薪資結構查詢</h2>
+                    <h2 className="hidden md:block text-xl font-bold text-gray-800 mb-6">薪資結構查詢</h2>
                     <div className="bg-[var(--primary)] p-6 md:p-8 rounded-3xl text-white shadow-xl text-center relative overflow-hidden">
                         <div className="absolute -left-4 -bottom-4 opacity-10 text-8xl"><i data-lucide="wallet" className="w-40 md:w-48 h-40 md:h-48"></i></div>
                         <div className="text-sm opacity-80 mb-2 font-bold">{targetMonth.replace('-','年')}月 實發預估</div>
@@ -916,7 +916,7 @@
 
             const renderEmployee = () => (
                 <div className="fade-in max-w-3xl mx-auto space-y-6">
-                    <h2 className="text-xl font-bold text-gray-800 mb-6">員工管理與系統設定</h2>
+                    <h2 className="hidden md:block text-xl font-bold text-gray-800 mb-6">員工管理與系統設定</h2>
                     
                     <div className="card-data-container border-t-4 border-[var(--primary)]">
                         <h3 className="text-lg font-bold text-gray-800 mb-4">基本參數設定</h3>
@@ -1014,7 +1014,7 @@
                                     <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#1E293B]">▲</div>
                                     <div className="flex flex-col">
                                         <span>HR 出勤系統</span>
-                                        <span className="text-[10px] text-gray-400 font-normal">v0.0.0.0.41</span>
+                                        <span className="text-[10px] text-gray-400 font-normal">v0.0.0.0.42</span>
                                     </div>
                                 </div>
                             </div>
@@ -1044,8 +1044,8 @@
                             </div>
                         </header>
                         
-                        {/* 增加手機版的底部留白 (pb-24) 避免內容被工作列遮擋 */}
-                        <main className="p-4 md:p-8 pb-24 md:pb-12 flex-1 relative w-full">
+                        {/* 增加手機版的底部留白 (pb-28) 避免內容被工作列遮擋 */}
+                        <main className="p-4 md:p-8 pb-28 md:pb-12 flex-1 relative w-full">
                             {currentView === 'dashboard' && renderDashboard()}
                             {currentView === 'clockin' && renderForms()}
                             {currentView === 'records' && renderRecords()}
@@ -1054,8 +1054,8 @@
                             {currentView === 'employee' && renderEmployee()}
                         </main>
 
-                        {/* 新增：手機版專用底部工作列 (Bottom Navigation) */}
-                        <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex justify-around items-center h-16 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-safe">
+                        {/* 新增：手機版專用底部工作列 (Bottom Navigation) 增加高度與安全間距 */}
+                        <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex justify-around items-center h-[72px] z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-2 pt-1">
                             {navItems.map(item => (
                                 <button 
                                     key={item.id} 
