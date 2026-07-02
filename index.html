@@ -83,10 +83,6 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .fade-in { animation: fadeIn 0.3s ease-in; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        
-        /* 表格響應式捲動修飾 */
-        .table-scroll-container { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        table { min-width: 500px; }
     </style>
 </head>
 <body>
@@ -167,7 +163,7 @@
             })
 
             useEffect(() => {
-                if (window.lucide) window.lucide.createIcons();
+                setTimeout(() => { if (window.lucide) window.lucide.createIcons(); }, 50);
             });
 
             useEffect(() => {
@@ -387,8 +383,8 @@
                                 <h2 className="text-lg font-bold text-gray-800">本年度出勤與變動</h2>
                                 <button onClick={() => setCurrentView('records')} className="text-[var(--primary)] text-sm flex items-center hover:underline whitespace-nowrap">查看完整紀錄 <i data-lucide="chevron-right" className="w-4 h-4"></i></button>
                             </div>
-                            <div className="table-scroll-container">
-                                <table className="w-full text-center text-sm">
+                            <div className="w-full overflow-x-auto touch-pan-x">
+                                <table className="w-full text-center text-sm min-w-[600px]">
                                     <thead>
                                         <tr className="text-gray-500 border-b border-gray-100 whitespace-nowrap">
                                             <th className="py-3 px-2 font-medium">日期</th>
@@ -628,8 +624,8 @@
                         <h2 className="text-xl font-bold text-gray-800">出勤紀錄與異動明細</h2>
                         <input type="month" value={targetMonth} onChange={(e) => setTargetMonth(e.target.value)} className="w-full md:w-auto px-4 py-2 border rounded-lg font-bold text-gray-700 outline-none focus:border-[var(--primary)]" />
                     </div>
-                    <div className="table-scroll-container">
-                        <table className="w-full text-center text-sm">
+                    <div className="w-full overflow-x-auto touch-pan-x">
+                        <table className="w-full text-center text-sm min-w-[800px]">
                             <thead className="bg-slate-50">
                                 <tr className="text-gray-500 border-b border-gray-200 whitespace-nowrap">
                                     <th className="py-3 px-2 font-medium">日期</th>
@@ -1010,12 +1006,10 @@
 
             return (
                 <div className="flex min-h-screen">
-                    {/* 手機版半透明背景遮罩 */}
                     {isMobileMenuOpen && (
                         <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>
                     )}
 
-                    {/* 響應式側滑選單 */}
                     <div className={`w-64 bg-[#1E293B] h-screen flex flex-col justify-between fixed left-0 top-0 text-sm z-50 transform transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
                         <div>
                             <div className="flex items-center justify-between p-6 text-white text-xl font-bold">
@@ -1023,10 +1017,9 @@
                                     <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#1E293B]">▲</div>
                                     <div className="flex flex-col">
                                         <span>HR 出勤系統</span>
-                                        <span className="text-[10px] text-gray-400 font-normal">v0.0.0.0.3 RWD</span>
+                                        <span className="text-[10px] text-gray-400 font-normal">v0.0.0.0.4</span>
                                     </div>
                                 </div>
-                                {/* 手機版隱藏選單按鈕 */}
                                 <button className="md:hidden text-gray-400 hover:text-white" onClick={() => setIsMobileMenuOpen(false)}>
                                     <i data-lucide="x" className="w-6 h-6"></i>
                                 </button>
@@ -1041,11 +1034,9 @@
                         </div>
                     </div>
                     
-                    {/* 主要內容區塊，自動填滿剩餘寬度 */}
                     <div className="flex-1 flex flex-col w-full md:ml-64 bg-[var(--surface)] min-h-screen overflow-x-hidden relative">
                         <header className="h-16 md:h-20 bg-white flex items-center justify-between px-4 md:px-8 border-b border-gray-100 sticky top-0 z-10 shadow-sm">
                             <div className="flex items-center gap-3 md:gap-4">
-                                {/* 手機版開啟選單按鈕 */}
                                 <button className="md:hidden text-gray-500 hover:text-[var(--primary)]" onClick={() => setIsMobileMenuOpen(true)}>
                                     <i data-lucide="menu" className="w-6 h-6"></i>
                                 </button>
