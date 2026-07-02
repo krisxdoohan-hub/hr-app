@@ -1006,27 +1006,21 @@
 
             return (
                 <div className="flex min-h-screen">
-                    {isMobileMenuOpen && (
-                        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>
-                    )}
-
-                    <div className={`w-64 bg-[#1E293B] h-screen flex flex-col justify-between fixed left-0 top-0 text-sm z-50 transform transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+                    {/* 電腦版與平板專用側邊欄 (手機版直接隱藏，改用底部工作列) */}
+                    <div className="hidden md:flex w-64 bg-[#1E293B] h-screen flex-col justify-between fixed left-0 top-0 text-sm z-50">
                         <div>
                             <div className="flex items-center justify-between p-6 text-white text-xl font-bold">
                                 <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#1E293B]">▲</div>
                                     <div className="flex flex-col">
                                         <span>HR 出勤系統</span>
-                                        <span className="text-[10px] text-gray-400 font-normal">v0.0.0.0.4</span>
+                                        <span className="text-[10px] text-gray-400 font-normal">v0.0.0.0.41</span>
                                     </div>
                                 </div>
-                                <button className="md:hidden text-gray-400 hover:text-white" onClick={() => setIsMobileMenuOpen(false)}>
-                                    <i data-lucide="x" className="w-6 h-6"></i>
-                                </button>
                             </div>
                             <nav className="px-4 space-y-2 mt-4">
                                 {navItems.map(item => (
-                                    <button key={item.id} onClick={() => { setCurrentView(item.id); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 ${currentView === item.id ? 'sidebar-item-active' : 'sidebar-item'}`}>
+                                    <button key={item.id} onClick={() => setCurrentView(item.id)} className={`w-full flex items-center gap-3 px-4 py-3 ${currentView === item.id ? 'sidebar-item-active' : 'sidebar-item'}`}>
                                         <i data-lucide={item.icon} className="w-5 h-5"></i> {item.label}
                                     </button>
                                 ))}
@@ -1037,9 +1031,6 @@
                     <div className="flex-1 flex flex-col w-full md:ml-64 bg-[var(--surface)] min-h-screen overflow-x-hidden relative">
                         <header className="h-16 md:h-20 bg-white flex items-center justify-between px-4 md:px-8 border-b border-gray-100 sticky top-0 z-10 shadow-sm">
                             <div className="flex items-center gap-3 md:gap-4">
-                                <button className="md:hidden text-gray-500 hover:text-[var(--primary)]" onClick={() => setIsMobileMenuOpen(true)}>
-                                    <i data-lucide="menu" className="w-6 h-6"></i>
-                                </button>
                                 <h1 className="text-lg md:text-xl font-semibold text-gray-800">{navItems.find(n => n.id === currentView)?.label}</h1>
                                 {isLoading && <div className="loader ml-2 md:ml-4"></div>}
                             </div>
@@ -1053,7 +1044,8 @@
                             </div>
                         </header>
                         
-                        <main className="p-4 md:p-8 pb-12 flex-1 relative w-full">
+                        {/* 增加手機版的底部留白 (pb-24) 避免內容被工作列遮擋 */}
+                        <main className="p-4 md:p-8 pb-24 md:pb-12 flex-1 relative w-full">
                             {currentView === 'dashboard' && renderDashboard()}
                             {currentView === 'clockin' && renderForms()}
                             {currentView === 'records' && renderRecords()}
@@ -1061,6 +1053,21 @@
                             {currentView === 'salary' && renderSalary()}
                             {currentView === 'employee' && renderEmployee()}
                         </main>
+
+                        {/* 新增：手機版專用底部工作列 (Bottom Navigation) */}
+                        <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex justify-around items-center h-16 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-safe">
+                            {navItems.map(item => (
+                                <button 
+                                    key={item.id} 
+                                    onClick={() => setCurrentView(item.id)} 
+                                    className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${currentView === item.id ? 'text-[var(--primary)]' : 'text-gray-400 hover:text-[var(--primary)]'}`}
+                                >
+                                    <i data-lucide={item.icon} className="w-5 h-5"></i>
+                                    {/* 縮短手機版文字以適應版面 */}
+                                    <span className="text-[10px] font-bold">{item.label.replace('總覽','').replace('管理','').replace('查詢','')}</span>
+                                </button>
+                            ))}
+                        </nav>
                     </div>
                 </div>
             );
