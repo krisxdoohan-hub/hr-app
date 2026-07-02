@@ -91,9 +91,6 @@
         const { useState, useEffect, useMemo, useRef } = React;
         const STORAGE_KEY = 'HR_APP_DATA_V10_FUSION';
 
-        // ----------------------------------------------------
-        // 安全鎖定畫面模組
-        // ----------------------------------------------------
         const LockScreen = ({ onUnlock, error, passcodeLength = 6 }) => {
             const [passcode, setPasscode] = useState('');
             const handleChange = (e) => setPasscode(e.target.value.replace(/[^0-9]/g, ''));
@@ -119,9 +116,6 @@
             );
         };
 
-        // ----------------------------------------------------
-        // 共用 UI 元件
-        // ----------------------------------------------------
         const StatCard = ({ icon, title, value, subtext, highlight, bgColor, iconColor }) => (
             <div className="card-data-container flex items-center gap-6">
                 <div className={`w-16 h-16 rounded-full flex items-center justify-center ${bgColor} ${iconColor}`}>
@@ -137,9 +131,6 @@
             </div>
         );
 
-        // ----------------------------------------------------
-        // 主應用程式
-        // ----------------------------------------------------
         const App = () => {
             const [isLocked, setIsLocked] = useState(true);
             const [lockError, setLockError] = useState('');
@@ -148,7 +139,6 @@
             const [isAmountMasked, setIsAmountMasked] = useState(false);
             const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7));
             
-            // 新增：請假申報狀態與長按互動狀態
             const [leaveForm, setLeaveForm] = useState({ date: new Date().toISOString().split('T')[0], type: 'annual', hours: 8 });
             const [showBrackets, setShowBrackets] = useState(false);
             const pressTimer = useRef(null);
@@ -156,7 +146,6 @@
             const handlePressStart = () => { pressTimer.current = setTimeout(() => setShowBrackets(true), 800); };
             const handlePressEnd = () => { if (pressTimer.current) clearTimeout(pressTimer.current); setShowBrackets(false); };
             
-            // 資料模型 (整合舊版結構)
             const [data, setData] = useState(() => {
                 const saved = localStorage.getItem(STORAGE_KEY);
                 return saved ? JSON.parse(saved) : {
@@ -171,7 +160,6 @@
                 };
             })
 
-            // 確保 Lucide 圖示在每次渲染後都能正確顯示
             useEffect(() => {
                 if (window.lucide) window.lucide.createIcons();
             });
@@ -180,7 +168,6 @@
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
             }, [data]);
 
-            // 雲端同步邏輯 (GAS)
             const syncToCloud = async (newData, showLoading = false) => {
                 setData(newData); 
                 if (!newData.gasUrl) return; 
@@ -205,23 +192,23 @@
                 setIsLoading(false);
             };
 
-            // 新增：自動檢查與補齊本月打卡紀錄
+            // 自動補卡邏輯回溯至 4月
             useEffect(() => {
                 if (isLocked) return;
                 
                 const now = new Date();
                 const year = now.getFullYear();
-                const month = now.getMonth();
-                const today = now.getDate();
+                const startDate = new Date(year, 3, 1); 
                 let hasChanges = false;
                 let newRecords = [...data.records];
 
-                for (let day = 1; day <= today; day++) {
-                    const d = new Date(year, month, day);
+                for (let d = new Date(startDate); d <= now; d.setDate(d.getDate() + 1)) {
+                    const y = d.getFullYear();
+                    const m = d.getMonth();
+                    const day = d.getDate();
                     const dayOfWeek = d.getDay();
-                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                     
-                    // 判斷邏輯：預設平日上班，若行事曆中有定義則依照行事曆 (isholiday="否" 代表要上班)
                     let shouldWork = (dayOfWeek >= 1 && dayOfWeek <= 5);
                     if (data.holidays && data.holidays[dateStr] !== undefined) {
                         shouldWork = !data.holidays[dateStr]; 
@@ -231,7 +218,7 @@
                         const hasPunchIn = newRecords.some(r => r.date === dateStr && r.type === 'punch_in');
                         const hasPunchOut = newRecords.some(r => r.date === dateStr && r.type === 'punch_out');
 
-                        const punchInLimit = new Date(year, month, day, 8, 59).getTime();
+                        const punchInLimit = new Date(y, m, day, 8, 59).getTime();
                         if (!hasPunchIn && now.getTime() > punchInLimit) {
                             const min = 55 + Math.floor(Math.random() * 5); 
                             newRecords.push({ id: Date.now() + Math.random(), date: dateStr, type: 'punch_in', time: `08:${min}`, hours: 0, amount: 0 });
@@ -242,10 +229,9 @@
 
                         if (!hasPunchOut) {
                             if (otRecord) {
-                                // 若有申報加班，下班時間依據加班時數累加 (18:00 + 加班時數)
                                 const targetHour = 18 + Math.floor(otRecord.hours);
                                 const targetMin = (otRecord.hours % 1) * 60;
-                                const otPunchOutLimit = new Date(year, month, day, targetHour, targetMin + 3).getTime();
+                                const otPunchOutLimit = new Date(y, m, day, targetHour, targetMin + 3).getTime();
                                 
                                 if (now.getTime() > otPunchOutLimit) {
                                     let finalMin = targetMin + 1 + Math.floor(Math.random() * 3);
@@ -256,8 +242,7 @@
                                     hasChanges = true;
                                 }
                             } else {
-                                // 若無申報加班，過了晚上 11:55 分自動視為無加班並補 18:00 左右的正常下班卡
-                                const defaultCutoffTime = new Date(year, month, day, 23, 55).getTime();
+                                const defaultCutoffTime = new Date(y, m, day, 18, 5).getTime();
                                 if (now.getTime() > defaultCutoffTime) {
                                     const min = 1 + Math.floor(Math.random() * 3); 
                                     newRecords.push({ id: Date.now() + Math.random(), date: dateStr, type: 'punch_out', time: `18:0${min}`, hours: 0, amount: 0 });
@@ -273,7 +258,6 @@
                 }
             }, [isLocked, data]);
 
-            // 新增：手動打卡處理邏輯
             const handleManualPunch = (type) => {
                 const now = new Date();
                 const date = now.toISOString().split('T')[0];
@@ -292,9 +276,6 @@
                 else { setLockError('密碼錯誤，請重新輸入'); }
             };
 
-            // ----------------------------------------------------
-            // 核心計算邏輯 (源自舊版 Vue 邏輯)
-            // ----------------------------------------------------
             const currentSalary = useMemo(() => {
                 if (data.monthlySalaries[targetMonth]) return data.monthlySalaries[targetMonth];
                 const past = Object.keys(data.monthlySalaries).filter(m => m < targetMonth).sort().reverse();
@@ -357,8 +338,6 @@
             const formatDaysHours = (h) => h % 8 === 0 ? `${h / 8}天` : `${Math.floor(h / 8)}天${h % 8}h`;
 
             const monthlyRecords = data.records.filter(r => r.date.startsWith(targetMonth)).sort((a,b) => new Date(b.date) - new Date(a.date));
-            
-            // 新增：計算本年度紀錄與實際出勤天數
             const targetYear = targetMonth.split('-')[0];
             const yearlyRecords = data.records.filter(r => r.date.startsWith(targetYear)).sort((a,b) => new Date(b.date) - new Date(a.date));
             const actualWorkDays = new Set(monthlyRecords.filter(r => r.type === 'punch_in').map(r => r.date)).size;
@@ -368,15 +347,12 @@
             const totalMonthlyChanges = monthlyRecords.reduce((sum, r) => sum + r.amount, 0);
             const estimatedFinalSalary = (currentSalary || 0) + totalMonthlyChanges - laborFee - healthFee;
 
-            // 首頁總覽使用之動態計算變數
             const allLeaves = data.records.filter(r => ['annual', 'sick', 'personal'].includes(r.type)).sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
             let weekdaysInMonth = 0;
             const daysInMonth = new Date(targetYear, targetMonth.split('-')[1], 0).getDate();
             for(let i=1; i<=daysInMonth; i++) {
                 const dateStr = `${targetYear}-${String(targetMonth.split('-')[1]).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
                 const d = new Date(targetYear, parseInt(targetMonth.split('-')[1])-1, i).getDay();
-                
-                // 動態判斷應出勤日
                 let shouldWork = (d !== 0 && d !== 6);
                 if (data.holidays && data.holidays[dateStr] !== undefined) {
                     shouldWork = !data.holidays[dateStr];
@@ -387,11 +363,6 @@
             const otDaysThisMonth = new Set(monthlyRecords.filter(r => r.type === 'overtime').map(r => r.date)).size;
             const missedDaysThisMonth = Math.max(0, weekdaysInMonth - actualWorkDays - leaveDaysThisMonth);
 
-            // ----------------------------------------------------
-            // 視圖渲染區塊 (Views)
-            // ----------------------------------------------------
-            
-            // 1. 首頁總覽
             const renderDashboard = () => (
                 <div className="fade-in">
                     <div className="flex justify-between items-center mb-6">
@@ -468,7 +439,6 @@
                         </div>
                     </div>
                     
-                    {/* 近期請假申請 與 出勤狀態 */}
                     <div className="grid grid-cols-2 gap-6">
                         <div className="card-data-container">
                             <div className="flex justify-between items-center mb-6">
@@ -530,9 +500,9 @@
                 </div>
             );
 
-            // 2. 出勤打卡 (各類表單申報)
             const [attForm, setAttForm] = useState({ date: new Date().toISOString().split('T')[0], type: 'overtime', hours: 1 });
             const [bonusForm, setBonusForm] = useState({ date: new Date().toISOString().split('T')[0], type: 'bonus_festival', amount: '' });
+            const [editState, setEditState] = useState(null); // 紀錄編輯狀態
             
             const handleAddAttendance = (e) => {
                 e.preventDefault();
@@ -544,7 +514,6 @@
                 
                 let newRecords = [{ id: Date.now(), date: attForm.date, type: attForm.type, hours: attForm.hours, amount: amt }, ...data.records];
                 
-                // 連動修改當日下班打卡時間
                 if (attForm.type === 'overtime') {
                     const punchOutIndex = newRecords.findIndex(r => r.date === attForm.date && r.type === 'punch_out');
                     const targetHour = 18 + Math.floor(attForm.hours);
@@ -561,7 +530,7 @@
                     }
                 }
                 syncToCloud({ ...data, records: newRecords }, true);
-                alert('加班申報成功！下班時間已連動更新。');
+                alert('申報成功！');
             };
 
             const handleAddBonus = (e) => {
@@ -585,7 +554,6 @@
                 <div className="fade-in max-w-4xl mx-auto space-y-6">
                     <h2 className="text-xl font-bold text-gray-800 mb-6">出勤打卡與申報</h2>
                     
-                    {/* 新增：每日手動打卡區塊 */}
                     <div className="card-data-container border-l-4 border-blue-500 mb-6 flex justify-between items-center bg-blue-50/30">
                         <div>
                             <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><i data-lucide="clock" className="text-blue-500"></i> 每日出勤打卡</h3>
@@ -600,6 +568,10 @@
                     <div className="card-data-container border-l-4 border-emerald-500">
                         <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="calendar-check" className="text-emerald-500"></i> 出勤異動申報</h3>
                         <form onSubmit={handleAddAttendance} className="grid grid-cols-4 gap-4 items-end">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 mb-1">日期</label>
+                                <input type="date" required value={attForm.date} onChange={e => setAttForm({...attForm, date: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold" />
+                            </div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">類別</label>
                                 <select value={attForm.type} onChange={e => setAttForm({...attForm, type: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold">
@@ -640,7 +612,6 @@
                 </div>
             );
 
-            // 3. 出勤紀錄 (列表與刪除)
             const renderRecords = () => (
                 <div className="fade-in card-data-container">
                     <div className="flex justify-between items-center mb-6">
@@ -652,7 +623,7 @@
                             <tr className="text-gray-500 border-b border-gray-200">
                                 <th className="py-3 font-medium">日期</th>
                                 <th className="py-3 font-medium">類別</th>
-                                <th className="py-3 font-medium">時數</th>
+                                <th className="py-3 font-medium">時數/時間</th>
                                 <th className="py-3 font-medium">增減金額</th>
                                 <th className="py-3 font-medium">操作</th>
                             </tr>
@@ -661,7 +632,40 @@
                             {monthlyRecords.length === 0 ? (
                                 <tr><td colSpan="5" className="py-12 text-gray-400 font-bold">本月無紀錄</td></tr>
                             ) : (
-                                monthlyRecords.map(r => (
+                                monthlyRecords.map(r => editState?.id === r.id ? (
+                                    <tr key={r.id} className="border-b border-gray-100 bg-blue-50/50">
+                                        <td className="py-2"><input type="date" value={editState.date} onChange={e=>setEditState({...editState, date: e.target.value})} className="border p-1 rounded w-full text-xs" /></td>
+                                        <td className="py-2">
+                                            <select value={editState.type} onChange={e=>setEditState({...editState, type: e.target.value})} className="border p-1 rounded w-full text-xs">
+                                                <option value="punch_in">上班打卡</option>
+                                                <option value="punch_out">下班打卡</option>
+                                                <option value="overtime">加班</option>
+                                                <option value="annual">特休</option>
+                                                <option value="sick">病假</option>
+                                                <option value="personal">事假</option>
+                                                <option value="bonus_festival">三節獎金</option>
+                                                <option value="bonus_incentive">激勵獎金</option>
+                                                <option value="bonus_yearend">年終獎金</option>
+                                                <option value="bonus_birthday">生日禮金</option>
+                                            </select>
+                                        </td>
+                                        <td className="py-2">
+                                            {['punch_in', 'punch_out'].includes(editState.type) ? 
+                                                <input type="time" value={editState.time || ''} onChange={e=>setEditState({...editState, time: e.target.value, hours: 0})} className="border p-1 rounded w-full text-xs" /> :
+                                                <input type="number" step="0.5" value={editState.hours || 0} onChange={e=>setEditState({...editState, hours: Number(e.target.value), time: null})} className="border p-1 rounded w-full text-xs" />
+                                            }
+                                        </td>
+                                        <td className="py-2"><input type="number" value={editState.amount || 0} onChange={e=>setEditState({...editState, amount: Number(e.target.value)})} className="border p-1 rounded w-full text-xs" /></td>
+                                        <td className="py-2 flex justify-center gap-2">
+                                            <button onClick={() => {
+                                                let newRecords = data.records.map(x => x.id === editState.id ? editState : x);
+                                                syncToCloud({ ...data, records: newRecords }, true);
+                                                setEditState(null);
+                                            }} className="text-green-600 hover:text-green-800 p-2 bg-green-100 rounded-full transition-colors" title="儲存"><i data-lucide="check" className="w-4 h-4"></i></button>
+                                            <button onClick={() => setEditState(null)} className="text-gray-500 hover:text-gray-700 p-2 bg-gray-100 rounded-full transition-colors" title="取消"><i data-lucide="x" className="w-4 h-4"></i></button>
+                                        </td>
+                                    </tr>
+                                ) : (
                                     <tr key={r.id} className="border-b border-gray-100 hover:bg-[#FDF2E9] transition-colors">
                                         <td className="py-4">{r.date}</td>
                                         <td className={`py-4 font-bold ${r.type === 'annual' ? 'text-blue-500' : r.type === 'sick' ? 'text-green-500' : r.type === 'personal' ? 'text-orange-400' : ''}`}>
@@ -669,7 +673,10 @@
                                         </td>
                                         <td className="py-4 font-bold">{r.time ? r.time : (r.hours > 0 ? `${r.hours} h` : '-')}</td>
                                         <td className={`py-4 font-bold ${r.amount > 0 ? 'text-emerald-500' : (r.amount < 0 ? 'text-red-500' : 'text-gray-400')}`}>{isAmountMasked ? '***' : r.amount}</td>
-                                        <td className="py-4">
+                                        <td className="py-4 flex justify-center gap-2">
+                                            <button onClick={() => setEditState({...r})} className="text-blue-400 hover:text-blue-600 transition-colors p-2 bg-blue-50 rounded-full hover:bg-blue-100">
+                                                <i data-lucide="edit-2" className="w-4 h-4"></i>
+                                            </button>
                                             <button onClick={() => { 
                                                 if(window.confirm('確定刪除此紀錄？')) {
                                                     let newRecords = data.records.filter(x => x.id !== r.id);
@@ -694,7 +701,6 @@
                 </div>
             );
 
-            // 4. 請假管理
             const renderLeave = () => (
                 <div className="fade-in max-w-4xl mx-auto">
                     <h2 className="text-xl font-bold text-gray-800 mb-6">請假管理與假別設定</h2>
@@ -751,7 +757,6 @@
                 </div>
             );
 
-            // 5. 薪資查詢
             const renderSalary = () => (
                 <div className="fade-in max-w-3xl mx-auto space-y-6">
                     <h2 className="text-xl font-bold text-gray-800 mb-6">薪資結構查詢</h2>
@@ -794,48 +799,38 @@
                 </div>
             );
 
-            // 6. 員工管理 (設定與資料匯入)
             const handleHolidayImport = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
                 
-                // 新增防呆：詢問是否要保留或清空舊資料
                 const keepOld = window.confirm('是否要保留系統中既有的行事曆資料？\n\n點擊「確定」：保留舊資料，並與新檔案合併\n點擊「取消」：清空舊資料，完全以這次匯入的檔案為主');
                 
                 const reader = new FileReader();
                 reader.onload = (ev) => {
                     const text = ev.target.result;
                     let validCount = 0;
-                    
-                    // 根據使用者的選擇，決定是繼承舊資料還是給予空物件
                     const newHolidays = keepOld ? { ...(data.holidays || {}) } : {};
 
                     try {
-                        // 判斷是否為 CSV 檔案
                         if (file.name.toLowerCase().endsWith('.csv')) {
-                            // 處理 CSV 格式 (支援 Excel 轉存的格式)
                             const lines = text.split('\n').filter(line => line.trim().length > 0);
                             if (lines.length > 1) {
-                                // 將標題列轉小寫並清掉引號以利比對
                                 const headers = lines[0].split(',').map(h => h.trim().replace(/["\r]/g, '').toLowerCase());
                                 const dateIdx = headers.findIndex(h => h === 'date' || h.includes('日期'));
                                 const holidayIdx = headers.findIndex(h => h === 'isholiday' || h.includes('放假') || h === 'is_holiday');
 
                                 if (dateIdx !== -1 && holidayIdx !== -1) {
                                     for (let i = 1; i < lines.length; i++) {
-                                        // 簡單以逗號分割 (政府日期與是否放假欄位通常不會有內建逗號)
                                         const cols = lines[i].split(',');
                                         if (cols.length > Math.max(dateIdx, holidayIdx)) {
                                             const dateVal = cols[dateIdx].replace(/["\r]/g, '').trim();
                                             const isH = cols[holidayIdx].replace(/["\r]/g, '').trim();
                                             
-                                            // 濾除非日期的雜訊列
                                             const rawDate = dateVal.replace(/[\/\-]/g, '');
                                             if (rawDate.length === 8 && !isNaN(rawDate)) {
                                                 const y = rawDate.substring(0, 4);
                                                 const m = rawDate.substring(4, 6);
                                                 const d = rawDate.substring(6, 8);
-                                                // 政府檔案通常標示 "是" 代表放假，增加 boolean 判斷相容性
                                                 const isHolidayBool = (isH === '是' || String(isH).toLowerCase() === 'true' || isH === '1' || String(isH).toLowerCase() === 'y');
                                                 newHolidays[`${y}-${m}-${d}`] = isHolidayBool;
                                                 validCount++;
@@ -845,12 +840,9 @@
                                 }
                             }
                         } else {
-                            // 處理 JSON 格式：升級為動態鍵值掃描，解決不同年份 JSON 欄位命名或布林值不同的問題
                             const imported = JSON.parse(text);
                             imported.forEach(item => {
-                                // 動態尋找包含 date 或日期的 key
                                 const dateKey = Object.keys(item).find(k => k.toLowerCase() === 'date' || k.includes('日期'));
-                                // 動態尋找包含 isholiday 或放假的 key
                                 const holidayKey = Object.keys(item).find(k => k.toLowerCase().includes('isholiday') || k.toLowerCase().includes('is_holiday') || k.includes('放假'));
 
                                 if (dateKey && holidayKey) {
@@ -863,7 +855,6 @@
                                             const y = rawDate.substring(0, 4);
                                             const m = rawDate.substring(4, 6);
                                             const d = rawDate.substring(6, 8);
-                                            // 支援多種放假標記格式 (字串"是", "True", 布林值 true, 數字 1)
                                             const isHolidayBool = (isH === '是' || isH === true || String(isH).toLowerCase() === 'true' || isH === '1' || String(isH).toLowerCase() === 'y');
                                             newHolidays[`${y}-${m}-${d}`] = isHolidayBool;
                                             validCount++;
@@ -884,10 +875,8 @@
                         alert('匯入失敗，請確認檔案格式是否正確。'); 
                         console.error(err);
                     }
-                    e.target.value = ''; // 清空檔案選擇器
+                    e.target.value = ''; 
                 };
-                
-                // 以 UTF-8 讀取。若您的 CSV 匯入後顯示 0 筆，請確認檔案編碼是否為 UTF-8
                 reader.readAsText(file, 'UTF-8');
             };
 
@@ -898,7 +887,6 @@
                 reader.onload = (ev) => {
                     try {
                         const imported = JSON.parse(ev.target.result);
-                        // 自動相容新舊版格式 (保留新版特有欄位)
                         const mergedData = {
                             ...data,
                             passcode: imported.passcode || data.passcode,
@@ -997,7 +985,6 @@
                 </div>
             );
 
-            // 主畫面路由控制
             if (isLocked) return <LockScreen onUnlock={handleUnlock} error={lockError} />;
 
             const navItems = [
@@ -1017,7 +1004,7 @@
                                 <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#1E293B]">▲</div>
                                 <div className="flex flex-col">
                                     <span>HR 出勤系統</span>
-                                    <span className="text-[10px] text-gray-400 font-normal">v0.0.0.0.1</span>
+                                    <span className="text-[10px] text-gray-400 font-normal">v0.0.0.0.2</span>
                                 </div>
                             </div>
                             <nav className="px-4 space-y-2 mt-4">
