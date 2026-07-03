@@ -90,8 +90,6 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
         const STORAGE_KEY = 'HR_APP_DATA_V10_FUSION';
-        const APP_VERSION = 'v0.0.0.0.52';
-
 
         const LockScreen = ({ onUnlock, error, passcodeLength = 6 }) => {
             const [passcode, setPasscode] = useState('');
@@ -371,13 +369,13 @@
                         <h2 className="text-xl font-bold text-gray-800">首頁總覽</h2>
                         <input type="month" value={targetMonth} onChange={(e) => setTargetMonth(e.target.value)} className="px-4 py-2 border rounded-lg font-bold text-gray-700 outline-none focus:border-[var(--primary)]" />
                     </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 mb-6">
+                    <div className="grid grid-cols-3 gap-6 mb-6">
                         <StatCard icon="calendar-check" title="本月出勤天數" value={`${actualWorkDays} 天`} subtext="基於打卡紀錄" bgColor="bg-blue-50" iconColor="text-blue-500" />
                         <StatCard icon="clock" title="本月加班時數" value={otHours} highlight="小時" bgColor="bg-green-50" iconColor="text-green-500" />
                         <StatCard icon="plane" title="本月請假時數" value={leaveHours} highlight="小時" bgColor="bg-orange-50" iconColor="text-orange-500" />
                     </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 mb-6">
-                        <div className="card-data-container lg:col-span-2 overflow-x-auto">
+                    <div className="grid grid-cols-3 gap-6 mb-6">
+                        <div className="card-data-container col-span-2">
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-lg font-bold text-gray-800">本年度出勤與變動</h2>
                                 <button onClick={() => setCurrentView('records')} className="text-[var(--primary)] text-sm flex items-center hover:underline">查看完整紀錄 <i data-lucide="chevron-right" className="w-4 h-4"></i></button>
@@ -569,7 +567,7 @@
 
                     <div className="card-data-container border-l-4 border-emerald-500">
                         <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="calendar-check" className="text-emerald-500"></i> 出勤異動申報</h3>
-                        <form onSubmit={handleAddAttendance} className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-end">
+                        <form onSubmit={handleAddAttendance} className="grid grid-cols-4 gap-4 items-end">
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">日期</label>
                                 <input type="date" required value={attForm.date} onChange={e => setAttForm({...attForm, date: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold" />
@@ -590,7 +588,7 @@
 
                     <div className="card-data-container border-l-4 border-yellow-500">
                         <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="sack-dollar" className="text-yellow-500"></i> 額外獎金收入申報</h3>
-                        <form onSubmit={handleAddBonus} className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-end">
+                        <form onSubmit={handleAddBonus} className="grid grid-cols-4 gap-4 items-end">
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">發放日期</label>
                                 <input type="date" required value={bonusForm.date} onChange={e => setBonusForm({...bonusForm, date: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold" />
@@ -709,7 +707,7 @@
                     
                     <div className="card-data-container border-l-4 border-[#E67E22] mb-6">
                         <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="plane" className="text-[#E67E22]"></i> 請假申報</h3>
-                        <form onSubmit={handleAddLeave} className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-end">
+                        <form onSubmit={handleAddLeave} className="grid grid-cols-4 gap-4 items-end">
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">發生日期</label>
                                 <input type="date" required value={leaveForm.date} onChange={e => setLeaveForm({...leaveForm, date: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold" />
@@ -990,67 +988,64 @@
             if (isLocked) return <LockScreen onUnlock={handleUnlock} error={lockError} />;
 
             const navItems = [
-                { id: 'dashboard', label: '首頁總覽', icon: 'layout-dashboard' },
-                { id: 'clockin', label: '出勤打卡', icon: 'clock' },
-                { id: 'records', label: '出勤紀錄', icon: 'file-text' },
-                { id: 'leave', label: '請假管理', icon: 'plane' },
-                { id: 'salary', label: '薪資查詢', icon: 'calculator' },
-                { id: 'employee', label: '員工管理', icon: 'users' },
+                { id: 'dashboard', label: '首頁總覽', emoji: '🏠' },
+                { id: 'clockin', label: '出勤打卡', emoji: '⏱️' },
+                { id: 'records', label: '出勤紀錄', emoji: '📋' },
+                { id: 'leave', label: '請假管理', emoji: '✈️' },
+                { id: 'salary', label: '薪資查詢', emoji: '💰' },
+                { id: 'employee', label: '員工管理', emoji: '⚙️' },
             ];
 
             return (
-                <div className="flex min-h-screen pb-16 lg:pb-0">
-                    {/* 電腦版左側選單：僅在大螢幕 (lg) 以上顯示 */}
-                    <div className="hidden lg:flex w-64 bg-[#1E293B] h-screen flex-col justify-between fixed left-0 top-0 text-sm z-40">
+                <div className="flex min-h-screen pb-20 md:pb-0">
+                    {/* 桌機版左側導覽列 (手機版隱藏) */}
+                    <div className="hidden md:flex w-64 bg-[#1E293B] h-screen flex-col justify-between fixed left-0 top-0 text-sm z-40">
                         <div>
                             <div className="flex items-center gap-3 p-6 text-white text-xl font-bold">
                                 <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#1E293B]">▲</div>
                                 <div className="flex flex-col">
                                     <span>HR 出勤系統</span>
-                                    <span className="text-[10px] text-gray-400 font-normal">{APP_VERSION}</span>
+                                    <span className="text-[10px] text-gray-400 font-normal">v0.0.0.0.53 </span>
                                 </div>
                             </div>
                             <nav className="px-4 space-y-2 mt-4">
                                 {navItems.map(item => (
                                     <button key={item.id} onClick={() => setCurrentView(item.id)} className={`w-full flex items-center gap-3 px-4 py-3 ${currentView === item.id ? 'sidebar-item-active' : 'sidebar-item'}`}>
-                                        <i data-lucide={item.icon} className="w-5 h-5"></i> {item.label}
+                                        <span className="text-lg">{item.emoji}</span> {item.label}
                                     </button>
                                 ))}
                             </nav>
                         </div>
                     </div>
 
-                    {/* 手機/平板版底部導覽列：採用純 Icon 點擊設計 */}
-                    <div className="lg:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex justify-around items-center h-16 z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+                    {/* 手機版底部導覽列 (桌機版隱藏) */}
+                    <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-50 flex justify-around items-center px-1 py-2 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                         {navItems.map(item => (
-                            <button key={item.id} onClick={() => setCurrentView(item.id)} className={`flex flex-col items-center justify-center w-full h-full transition-colors ${currentView === item.id ? 'text-[var(--primary)]' : 'text-gray-400 hover:text-gray-600'}`} title={item.label}>
-                                <div dangerouslySetInnerHTML={{ __html: `<i data-lucide="${item.icon}" class="w-6 h-6"></i>` }}></div>
+                            <button key={item.id} onClick={() => setCurrentView(item.id)} className={`flex flex-col items-center justify-center w-16 gap-1 transition-all ${currentView === item.id ? 'text-[var(--primary)] scale-110' : 'text-gray-400 grayscale hover:grayscale-0'}`}>
+                                <span className="text-2xl leading-none">{item.emoji}</span>
+                                <span className="text-[10px] font-bold whitespace-nowrap">{item.label}</span>
                             </button>
                         ))}
                     </div>
                     
-                    <div className="flex-1 flex flex-col lg:ml-64 bg-[var(--surface)] relative overflow-x-hidden">
-                        <header className="h-16 lg:h-20 bg-white flex items-center justify-between px-4 lg:px-8 border-b border-gray-100 sticky top-0 z-10">
-                            <div className="flex items-center gap-3 lg:gap-4">
-                                <div className="flex flex-col">
-                                    <h1 className="text-lg lg:text-xl font-semibold text-gray-800">{navItems.find(n => n.id === currentView)?.label}</h1>
-                                    <span className="lg:hidden text-[10px] text-gray-400 font-normal mt-0.5">{APP_VERSION}</span>
-                                </div>
-                                {isLoading && <div className="loader ml-2 lg:ml-4"></div>}
+                    {/* 主要內容區塊，針對手機取消左側 margin，並加入溢出隱藏確保排版不破壞 */}
+                    <div className="flex-1 flex flex-col md:ml-64 bg-[var(--surface)] relative w-full overflow-x-hidden">
+                        <header className="h-16 md:h-20 bg-white flex items-center justify-between px-4 md:px-8 border-b border-gray-100 sticky top-0 z-10 shadow-sm md:shadow-none">
+                            <div className="flex items-center gap-2 md:gap-4 truncate">
+                                <h1 className="text-lg md:text-xl font-semibold text-gray-800 truncate">{navItems.find(n => n.id === currentView)?.label}</h1>
+                                {isLoading && <div className="loader ml-2 md:ml-4"></div>}
                             </div>
-                            <div className="flex items-center gap-3 lg:gap-6">
-                                <button onClick={() => setIsAmountMasked(!isAmountMasked)} className="text-gray-500 hover:text-[var(--primary)] transition-colors p-2" title="隱私遮蔽">
-                                    <i data-lucide={isAmountMasked ? 'eye-off' : 'eye'} className="w-6 h-6 lg:w-5 lg:h-5"></i>
+                            <div className="flex items-center gap-3 md:gap-6 shrink-0">
+                                <button onClick={() => setIsAmountMasked(!isAmountMasked)} className="text-xl md:text-2xl hover:scale-110 transition-transform bg-gray-50 p-2 rounded-full flex items-center justify-center" title="隱私遮蔽">
+                                    {isAmountMasked ? '🙈' : '👁️'}
                                 </button>
-                                {/* 右上角雲端按鈕改為自動縮小為 Icon */}
-                                <button onClick={fetchFromCloud} className="btn-outline-action w-10 h-10 lg:w-auto lg:px-4 lg:py-2 rounded-full lg:rounded-md text-xs flex items-center justify-center gap-2 font-bold" title="雲端同步">
-                                    <i data-lucide="refresh-cw" className="w-5 h-5 lg:w-4 lg:h-4"></i>
-                                    <span className="hidden lg:inline">雲端同步</span>
+                                <button onClick={fetchFromCloud} className="bg-blue-50 text-blue-600 border border-blue-200 px-3 py-2 md:px-4 md:py-2 rounded-xl text-sm md:text-xs flex items-center gap-1 md:gap-2 font-bold hover:bg-blue-100 transition-colors shadow-sm">
+                                    <span className="text-lg md:text-base leading-none">☁️</span> <span className="hidden md:inline">雲端同步</span>
                                 </button>
                             </div>
                         </header>
                         
-                        <main className="p-4 lg:p-8 pb-8 lg:pb-12 flex-1 relative w-full">
+                        <main className="p-4 md:p-8 flex-1 relative w-full max-w-[100vw] overflow-x-auto">
                             {currentView === 'dashboard' && renderDashboard()}
                             {currentView === 'clockin' && renderForms()}
                             {currentView === 'records' && renderRecords()}
