@@ -139,7 +139,7 @@
             const [isAmountMasked, setIsAmountMasked] = useState(false);
             const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7));
             
-            const [leaveForm, setLeaveForm] = useState({ date: new Date().toISOString().split('T')[0], type: 'annual', hours: 8 });
+            const [leaveForm, setLeaveForm] = useState({ date: new Date().toISOString().split('T')[0], endDate: new Date().toISOString().split('T')[0], type: 'annual', hours: 8 });
             const [showBrackets, setShowBrackets] = useState(false);
             const pressTimer = useRef(null);
 
@@ -543,11 +543,40 @@
 
             const handleAddLeave = (e) => {
                 e.preventDefault();
-                let amt = 0;
-                if (leaveForm.type === 'personal') amt = -Math.round(exactHourlyWage * leaveForm.hours);
-                if (leaveForm.type === 'sick') amt = -Math.round((exactHourlyWage / 2) * leaveForm.hours);
-                syncToCloud({ ...data, records: [{ id: Date.now(), date: leaveForm.date, type: leaveForm.type, hours: leaveForm.hours, amount: amt }, ...data.records] }, true);
-                alert('請假申報成功！');
+                let newRecords = [...data.records];
+                let current = new Date(leaveForm.date);
+                let end = new Date(leaveForm.endDate || leaveForm.date);
+                let addedCount = 0;
+
+                while (current <= end) {
+                    const y = current.getFullYear();
+                    const m = String(current.getMonth() + 1).padStart(2, '0');
+                    const d = String(current.getDate()).padStart(2, '0');
+                    const dateStr = `${y}-${m}-${d}`;
+                    const dayOfWeek = current.getDay();
+                    
+                    let isWorkDay = (dayOfWeek !== 0 && dayOfWeek !== 6);
+                    if (data.holidays && data.holidays[dateStr] !== undefined) {
+                        isWorkDay = !data.holidays[dateStr];
+                    }
+
+                    if (isWorkDay) {
+                        let amt = 0;
+                        if (leaveForm.type === 'personal') amt = -Math.round(exactHourlyWage * leaveForm.hours);
+                        if (leaveForm.type === 'sick') amt = -Math.round((exactHourlyWage / 2) * leaveForm.hours);
+                        newRecords.push({ id: Date.now() + Math.random(), date: dateStr, type: leaveForm.type, hours: leaveForm.hours, amount: amt });
+                        addedCount++;
+                    }
+                    current.setDate(current.getDate() + 1);
+                }
+
+                if (addedCount > 0) {
+                    newRecords.sort((a,b) => new Date(b.date) - new Date(a.date));
+                    syncToCloud({ ...data, records: newRecords }, true);
+                    alert(`請假申報成功！系統已自動排除假日，共計寫入 ${addedCount} 天紀錄`);
+                } else {
+                    alert('申報失敗：所選期間內沒有需要出勤的工作日！');
+                }
             };
 
             const renderForms = () => (
@@ -580,7 +609,11 @@
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">時數</label>
-                                <input type="number" step="0.5" required min="0.5" value={attForm.hours} onChange={e => setAttForm({...attForm, hours: Number(e.target.value)})} className="w-full px-3 py-2 border rounded-lg font-bold" />
+                                <select value={attForm.hours} onChange={e => setAttForm({...attForm, hours: Number(e.target.value)})} className="w-full px-3 py-2 border rounded-lg font-bold bg-white">
+                                    {Array.from({length: 15}, (_, i) => 1 + i * 0.5).map(h => (
+                                        <option key={h} value={h}>{h} 小時</option>
+                                    ))}
+                                </select>
                             </div>
                             <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 md:py-2 rounded-lg transition-all shadow-sm w-full">申報送出</button>
                         </form>
@@ -656,13 +689,13 @@
                                             }
                                         </td>
                                         <td className="py-2"><input type="number" value={editState.amount || 0} onChange={e=>setEditState({...editState, amount: Number(e.target.value)})} className="border p-1 rounded w-full text-xs" /></td>
-                                        <td className="py-2 flex justify-center gap-2">
+                                        <td className="py-2 flex justify-center gap-2 text-lg">
                                             <button onClick={() => {
                                                 let newRecords = data.records.map(x => x.id === editState.id ? editState : x);
                                                 syncToCloud({ ...data, records: newRecords }, true);
                                                 setEditState(null);
-                                            }} className="text-green-600 hover:text-green-800 p-2 bg-green-100 rounded-full transition-colors" title="儲存"><i data-lucide="check" className="w-4 h-4"></i></button>
-                                            <button onClick={() => setEditState(null)} className="text-gray-500 hover:text-gray-700 p-2 bg-gray-100 rounded-full transition-colors" title="取消"><i data-lucide="x" className="w-4 h-4"></i></button>
+                                            }} className="hover:scale-110 transition-transform" title="儲存">✅</button>
+                                            <button onClick={() => setEditState(null)} className="hover:scale-110 transition-transform" title="取消">❌</button>
                                         </td>
                                     </tr>
                                 ) : (
@@ -673,10 +706,8 @@
                                         </td>
                                         <td className="py-4 font-bold">{r.time ? r.time : (r.hours > 0 ? `${r.hours} h` : '-')}</td>
                                         <td className={`py-4 font-bold ${r.amount > 0 ? 'text-emerald-500' : (r.amount < 0 ? 'text-red-500' : 'text-gray-400')}`}>{isAmountMasked ? '***' : r.amount}</td>
-                                        <td className="py-4 flex justify-center gap-2">
-                                            <button onClick={() => setEditState({...r})} className="text-blue-400 hover:text-blue-600 transition-colors p-2 bg-blue-50 rounded-full hover:bg-blue-100">
-                                                <i data-lucide="edit-2" className="w-4 h-4"></i>
-                                            </button>
+                                        <td className="py-4 flex justify-center gap-2 text-lg">
+                                            <button onClick={() => setEditState({...r})} className="hover:scale-110 transition-transform" title="編輯">✏️</button>
                                             <button onClick={() => { 
                                                 if(window.confirm('確定刪除此紀錄？')) {
                                                     let newRecords = data.records.filter(x => x.id !== r.id);
@@ -689,9 +720,7 @@
                                                     }
                                                     syncToCloud({ ...data, records: newRecords });
                                                 }
-                                            }} className="text-red-400 hover:text-red-600 transition-colors p-2 bg-red-50 rounded-full hover:bg-red-100">
-                                                <i data-lucide="trash-2" className="w-4 h-4"></i>
-                                            </button>
+                                            }} className="hover:scale-110 transition-transform" title="刪除">🗑️</button>
                                         </td>
                                     </tr>
                                 ))
@@ -707,22 +736,30 @@
                     
                     <div className="card-data-container border-l-4 border-[#E67E22] mb-6">
                         <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="plane" className="text-[#E67E22]"></i> 請假申報</h3>
-                        <form onSubmit={handleAddLeave} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                        <form onSubmit={handleAddLeave} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 mb-1">發生日期</label>
-                                <input type="date" required value={leaveForm.date} onChange={e => setLeaveForm({...leaveForm, date: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold" />
+                                <label className="block text-xs font-bold text-gray-500 mb-1">開始日期</label>
+                                <input type="date" required value={leaveForm.date} onChange={e => setLeaveForm({...leaveForm, date: e.target.value, endDate: e.target.value > leaveForm.endDate ? e.target.value : leaveForm.endDate})} className="w-full px-3 py-2 border rounded-lg font-bold text-sm" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 mb-1">結束日期 (單日請同開始)</label>
+                                <input type="date" required min={leaveForm.date} value={leaveForm.endDate || leaveForm.date} onChange={e => setLeaveForm({...leaveForm, endDate: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold text-sm" />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">假別</label>
-                                <select value={leaveForm.type} onChange={e => setLeaveForm({...leaveForm, type: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold">
+                                <select value={leaveForm.type} onChange={e => setLeaveForm({...leaveForm, type: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold text-sm bg-white">
                                     <option value="annual">特休</option>
                                     <option value="sick">病假</option>
                                     <option value="personal">事假</option>
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 mb-1">時數</label>
-                                <input type="number" step="0.5" required min="0.5" value={leaveForm.hours} onChange={e => setLeaveForm({...leaveForm, hours: Number(e.target.value)})} className="w-full px-3 py-2 border rounded-lg font-bold" />
+                                <label className="block text-xs font-bold text-gray-500 mb-1">每日時數</label>
+                                <select value={leaveForm.hours} onChange={e => setLeaveForm({...leaveForm, hours: Number(e.target.value)})} className="w-full px-3 py-2 border rounded-lg font-bold text-sm bg-white">
+                                    {Array.from({length: 8}, (_, i) => 1 + i).map(h => (
+                                        <option key={h} value={h}>{h} 小時</option>
+                                    ))}
+                                </select>
                             </div>
                             <button type="submit" className="bg-[#D35400] hover:bg-[#E67E22] text-white font-bold py-3 md:py-2 rounded-lg transition-all shadow-sm w-full">申報送出</button>
                         </form>
@@ -906,6 +943,24 @@
                 reader.readAsText(file);
             };
 
+            const handleCopyCode = () => {
+                const code = btoa(encodeURIComponent(JSON.stringify(data)));
+                navigator.clipboard.writeText(code)
+                    .then(() => alert('已複製系統代碼！\n請至另一台裝置的系統中點擊「貼上代碼」。'))
+                    .catch(() => alert('複製失敗，請確認瀏覽器權限。'));
+            };
+            const handlePasteCode = () => {
+                const code = prompt('請在此貼上跨裝置轉移代碼：');
+                if(!code) return;
+                try {
+                    const imported = JSON.parse(decodeURIComponent(atob(code)));
+                    if(imported && imported.records) {
+                        syncToCloud({...data, ...imported}, true);
+                        alert('代碼載入成功！資料已同步。');
+                    } else { throw new Error('Invalid format'); }
+                } catch(err) { alert('載入失敗：代碼無效或已損毀！'); }
+            };
+
             const renderEmployee = () => (
                 <div className="fade-in max-w-3xl mx-auto space-y-6">
                     <h2 className="text-xl font-bold text-gray-800 mb-6">員工管理與系統設定</h2>
@@ -940,14 +995,20 @@
                                 <label className="block text-xs font-bold text-gray-500 mb-1">GAS 雲端資料庫網址 (Web App URL)</label>
                                 <input type="text" value={data.gasUrl} onChange={e => syncToCloud({...data, gasUrl: e.target.value})} placeholder="https://script.google.com/macros/s/..." className="w-full px-3 py-2 border rounded-lg font-bold focus:border-[var(--primary)] outline-none text-xs text-blue-600 bg-blue-50/50" />
                             </div>
-                            <div className="flex flex-col md:flex-row gap-4 pt-2">
-                                <div className="flex-1 relative w-full">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
+                                <button onClick={handleCopyCode} className="bg-white border border-green-600 py-3 rounded-xl font-bold text-sm text-green-700 shadow-sm flex items-center justify-center gap-2 hover:bg-green-50 transition-all w-full">
+                                    <i data-lucide="copy"></i> 複製代碼
+                                </button>
+                                <button onClick={handlePasteCode} className="bg-white border border-green-600 py-3 rounded-xl font-bold text-sm text-green-700 shadow-sm flex items-center justify-center gap-2 hover:bg-green-50 transition-all w-full">
+                                    <i data-lucide="clipboard-paste"></i> 貼上代碼
+                                </button>
+                                <div className="relative w-full">
                                     <input type="file" onChange={handleJSONImport} accept="application/json" className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full" />
                                     <div className="h-full bg-emerald-50 border border-emerald-200 py-3 rounded-xl font-bold text-sm text-center text-emerald-700 shadow-sm flex items-center justify-center gap-2 pointer-events-none transition-all w-full">
-                                        <i data-lucide="upload-cloud"></i> 匯入備份 (支援新/舊版)
+                                        <i data-lucide="upload-cloud"></i> 匯入 JSON
                                     </div>
                                 </div>
-                                <div className="flex-1 relative w-full">
+                                <div className="relative w-full">
                                     <input type="file" onChange={handleHolidayImport} accept=".json,.csv,application/json,text/csv" className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full" />
                                     <div className="h-full bg-orange-50 border border-orange-200 py-3 rounded-xl font-bold text-sm text-center text-orange-700 shadow-sm flex items-center justify-center gap-2 pointer-events-none transition-all w-full">
                                         <i data-lucide="calendar"></i> 匯入年度行事曆
@@ -1005,7 +1066,7 @@
                                 <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#1E293B]">▲</div>
                                 <div className="flex flex-col">
                                     <span>HR 出勤系統</span>
-                                    <span className="text-[10px] text-gray-400 font-normal">v0.0.0.0.54 </span>
+                                    <span className="text-[10px] text-gray-400 font-normal">v0.0.0.0.55 </span>
                                 </div>
                             </div>
                             <nav className="px-4 space-y-2 mt-4">
