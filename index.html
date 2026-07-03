@@ -92,6 +92,18 @@
         const { useState, useEffect, useMemo, useRef } = React;
         const STORAGE_KEY = 'HR_APP_DATA_V10_FUSION';
 
+        // 新增：專為 React 設計的 Lucide 圖示渲染元件，解決 DOM 衝突導致圖示消失的問題
+        const LucideIcon = ({ name, className = '' }) => {
+            const iconRef = useRef(null);
+            useEffect(() => {
+                if (iconRef.current && window.lucide) {
+                    iconRef.current.innerHTML = `<i data-lucide="${name}" class="${className}"></i>`;
+                    window.lucide.createIcons({ root: iconRef.current });
+                }
+            }, [name, className]);
+            return <span ref={iconRef} className="inline-flex items-center justify-center"></span>;
+        };
+
         const LockScreen = ({ onUnlock, error, passcodeLength = 6 }) => {
             const [passcode, setPasscode] = useState('');
             const handleChange = (e) => setPasscode(e.target.value.replace(/[^0-9]/g, ''));
@@ -101,7 +113,7 @@
                 <div className="fixed inset-0 z-[200] bg-slate-900 flex flex-col items-center justify-center px-6">
                     <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-xs text-center relative overflow-hidden fade-in">
                         <div className="absolute top-0 left-0 w-full h-2 bg-[var(--primary)]"></div>
-                        <div className="flex justify-center mb-4 text-[var(--primary)]"><i data-lucide="lock" className="w-12 h-12"></i></div>
+                        <div className="flex justify-center mb-4 text-[var(--primary)]"><LucideIcon name="lock" className="w-12 h-12" /></div>
                         <h2 className="text-xl font-black text-gray-800 mb-2">系統已鎖定</h2>
                         <p className="text-xs text-gray-500 font-bold mb-6">預設密碼為 123456</p>
                         <form onSubmit={handleSubmit}>
@@ -109,7 +121,7 @@
                                 className={`w-full text-center text-2xl tracking-[0.5em] font-black border-2 rounded-xl py-3 focus:outline-none transition-all ${error ? 'input-error-state bg-red-50' : 'border-gray-200 focus:border-[var(--primary)]'}`} />
                             {error && <p className="error-hint animate-pulse mt-2">{error}</p>}
                             <button type="submit" className="mt-6 w-full btn-primary-action py-3 rounded-xl font-bold flex items-center justify-center gap-2">
-                                <i data-lucide="key" className="w-4 h-4"></i> 解鎖進入
+                                <LucideIcon name="key" className="w-4 h-4" /> 解鎖進入
                             </button>
                         </form>
                     </div>
@@ -120,7 +132,7 @@
         const StatCard = ({ icon, title, value, subtext, highlight, bgColor, iconColor }) => (
             <div className="card-data-container flex items-center gap-6 p-5">
                 <div className={`w-14 h-14 shrink-0 rounded-full flex items-center justify-center ${bgColor} ${iconColor}`}>
-                    <i data-lucide={icon} className="w-7 h-7"></i>
+                    <LucideIcon name={icon} className="w-7 h-7" />
                 </div>
                 <div>
                     <div className="text-gray-500 text-sm font-medium mb-1">{title}</div>
@@ -161,10 +173,6 @@
                     holidays: {}
                 };
             })
-
-            useEffect(() => {
-                setTimeout(() => { if (window.lucide) window.lucide.createIcons(); }, 50);
-            });
 
             useEffect(() => {
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -381,7 +389,7 @@
                         <div className="card-data-container lg:col-span-2 overflow-hidden">
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-lg font-bold text-gray-800">本年度出勤與變動</h2>
-                                <button onClick={() => setCurrentView('records')} className="text-[var(--primary)] text-sm flex items-center hover:underline whitespace-nowrap">查看完整紀錄 <i data-lucide="chevron-right" className="w-4 h-4"></i></button>
+                                <button onClick={() => setCurrentView('records')} className="text-[var(--primary)] text-sm flex items-center hover:underline whitespace-nowrap">查看完整紀錄 <LucideIcon name="chevron-right" className="w-4 h-4" /></button>
                             </div>
                             <div className="w-full overflow-x-auto touch-pan-x">
                                 <table className="w-full text-center text-sm min-w-[600px]">
@@ -413,7 +421,7 @@
                         <div className="card-data-container">
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-lg font-bold text-gray-800">假別餘額 (時數)</h2>
-                                <button onClick={() => setCurrentView('leave')} className="text-[var(--primary)] text-sm flex items-center hover:underline">管理 <i data-lucide="chevron-right" className="w-4 h-4"></i></button>
+                                <button onClick={() => setCurrentView('leave')} className="text-[var(--primary)] text-sm flex items-center hover:underline">管理 <LucideIcon name="chevron-right" className="w-4 h-4" /></button>
                             </div>
                             <div className="space-y-6">
                                 {[ 
@@ -428,7 +436,7 @@
                                         <div key={item.key}>
                                             <div className="flex justify-between items-center mb-2">
                                                 <div className="flex items-center gap-3">
-                                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${item.iconBg}`}><i data-lucide={item.icon} className="w-4 h-4"></i></div>
+                                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${item.iconBg}`}><LucideIcon name={item.icon} className="w-4 h-4" /></div>
                                                     <span className="font-medium text-gray-700">{item.name}</span>
                                                 </div>
                                                 <div className="text-sm">
@@ -562,7 +570,7 @@
                     
                     <div className="card-data-container border-l-4 border-blue-500 mb-6 flex flex-col md:flex-row justify-between md:items-center bg-blue-50/30 gap-4">
                         <div>
-                            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><i data-lucide="clock" className="text-blue-500"></i> 每日出勤打卡</h3>
+                            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><LucideIcon name="clock" className="text-blue-500" /> 每日出勤打卡</h3>
                             <p className="text-xs text-gray-500 mt-1">若未手動打卡，系統將於規定時段自動推算並產生紀錄。</p>
                         </div>
                         <div className="flex gap-4 w-full md:w-auto">
@@ -572,7 +580,7 @@
                     </div>
 
                     <div className="card-data-container border-l-4 border-emerald-500">
-                        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="calendar-check" className="text-emerald-500"></i> 出勤異動申報</h3>
+                        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><LucideIcon name="calendar-check" className="text-emerald-500" /> 出勤異動申報</h3>
                         <form onSubmit={handleAddAttendance} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">日期</label>
@@ -593,7 +601,7 @@
                     </div>
 
                     <div className="card-data-container border-l-4 border-yellow-500">
-                        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="sack-dollar" className="text-yellow-500"></i> 額外獎金收入申報</h3>
+                        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><LucideIcon name="sack-dollar" className="text-yellow-500" /> 額外獎金收入申報</h3>
                         <form onSubmit={handleAddBonus} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">發放日期</label>
@@ -668,8 +676,8 @@
                                                     let newRecords = data.records.map(x => x.id === editState.id ? editState : x);
                                                     syncToCloud({ ...data, records: newRecords }, true);
                                                     setEditState(null);
-                                                }} className="text-green-600 hover:text-green-800 p-2 bg-green-100 rounded-full transition-colors" title="儲存"><i data-lucide="check" className="w-4 h-4"></i></button>
-                                                <button onClick={() => setEditState(null)} className="text-gray-500 hover:text-gray-700 p-2 bg-gray-100 rounded-full transition-colors" title="取消"><i data-lucide="x" className="w-4 h-4"></i></button>
+                                                }} className="text-green-600 hover:text-green-800 p-2 bg-green-100 rounded-full transition-colors" title="儲存"><LucideIcon name="check" className="w-4 h-4" /></button>
+                                                <button onClick={() => setEditState(null)} className="text-gray-500 hover:text-gray-700 p-2 bg-gray-100 rounded-full transition-colors" title="取消"><LucideIcon name="x" className="w-4 h-4" /></button>
                                             </td>
                                         </tr>
                                     ) : (
@@ -682,7 +690,7 @@
                                             <td className={`py-4 px-2 font-bold ${r.amount > 0 ? 'text-emerald-500' : (r.amount < 0 ? 'text-red-500' : 'text-gray-400')}`}>{isAmountMasked ? '***' : r.amount}</td>
                                             <td className="py-4 px-2 flex justify-center gap-2">
                                                 <button onClick={() => setEditState({...r})} className="text-blue-400 hover:text-blue-600 transition-colors p-2 bg-blue-50 rounded-full hover:bg-blue-100">
-                                                    <i data-lucide="edit-2" className="w-4 h-4"></i>
+                                                    <LucideIcon name="edit-2" className="w-4 h-4" />
                                                 </button>
                                                 <button onClick={() => { 
                                                     if(window.confirm('確定刪除此紀錄？')) {
@@ -697,7 +705,7 @@
                                                         syncToCloud({ ...data, records: newRecords });
                                                     }
                                                 }} className="text-red-400 hover:text-red-600 transition-colors p-2 bg-red-50 rounded-full hover:bg-red-100">
-                                                    <i data-lucide="trash-2" className="w-4 h-4"></i>
+                                                    <LucideIcon name="trash-2" className="w-4 h-4" />
                                                 </button>
                                             </td>
                                         </tr>
@@ -714,7 +722,7 @@
                     <h2 className="hidden md:block text-xl font-bold text-gray-800 mb-6">請假管理與假別設定</h2>
                     
                     <div className="card-data-container border-l-4 border-[#E67E22] mb-6">
-                        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="plane" className="text-[#E67E22]"></i> 請假申報</h3>
+                        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><LucideIcon name="plane" className="text-[#E67E22]" /> 請假申報</h3>
                         <form onSubmit={handleAddLeave} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">發生日期</label>
@@ -738,7 +746,7 @@
 
                     <div className="card-data-container mb-6">
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 border-b pb-4 gap-4">
-                            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><i data-lucide="calendar-range" className="text-amber-500"></i> 假別餘額管控</h3>
+                            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><LucideIcon name="calendar-range" className="text-amber-500" /> 假別餘額管控</h3>
                             <button onClick={() => {
                                 if(window.confirm('此動作將歸零「病假」與「事假」的期初時數，確定要重置嗎？')) {
                                     syncToCloud({...data, historicalLeave: {...data.historicalLeave, sick: 0, personal: 0}});
@@ -769,7 +777,7 @@
                 <div className="fade-in max-w-3xl mx-auto space-y-6">
                     <h2 className="hidden md:block text-xl font-bold text-gray-800 mb-6">薪資結構查詢</h2>
                     <div className="bg-[var(--primary)] p-6 md:p-8 rounded-3xl text-white shadow-xl text-center relative overflow-hidden">
-                        <div className="absolute -left-4 -bottom-4 opacity-10 text-8xl"><i data-lucide="wallet" className="w-40 md:w-48 h-40 md:h-48"></i></div>
+                        <div className="absolute -left-4 -bottom-4 opacity-10 text-8xl"><LucideIcon name="wallet" className="w-40 md:w-48 h-40 md:h-48" /></div>
                         <div className="text-sm opacity-80 mb-2 font-bold">{targetMonth.replace('-','年')}月 實發預估</div>
                         <div className="text-4xl md:text-5xl font-black relative z-10 tracking-tight break-all">NT$ {isAmountMasked ? '***,***' : estimatedFinalSalary.toLocaleString()}</div>
                         <div className="text-xs opacity-80 mt-4 bg-black/20 inline-block px-4 py-1.5 rounded-full relative z-10">底薪 + 加班與獎金 - 請假扣款 - 法定保險</div>
@@ -942,7 +950,7 @@
                     </div>
 
                     <div className="card-data-container border-t-4 border-slate-700">
-                        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="database" className="text-slate-600"></i> 資料轉移與雲端備份</h3>
+                        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><LucideIcon name="database" className="text-slate-600" /> 資料轉移與雲端備份</h3>
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">GAS 雲端資料庫網址 (Web App URL)</label>
@@ -952,13 +960,13 @@
                                 <div className="flex-1 relative">
                                     <input type="file" onChange={handleJSONImport} accept="application/json" className="absolute inset-0 opacity-0 cursor-pointer z-10" />
                                     <div className="h-full bg-emerald-50 border border-emerald-200 py-3 rounded-xl font-bold text-sm text-center text-emerald-700 shadow-sm flex items-center justify-center gap-2 pointer-events-none transition-all">
-                                        <i data-lucide="upload-cloud"></i> 匯入備份
+                                        <LucideIcon name="upload-cloud" /> 匯入備份
                                     </div>
                                 </div>
                                 <div className="flex-1 relative">
                                     <input type="file" onChange={handleHolidayImport} accept=".json,.csv,application/json,text/csv" className="absolute inset-0 opacity-0 cursor-pointer z-10" />
                                     <div className="h-full bg-orange-50 border border-orange-200 py-3 rounded-xl font-bold text-sm text-center text-orange-700 shadow-sm flex items-center justify-center gap-2 pointer-events-none transition-all">
-                                        <i data-lucide="calendar"></i> 匯入行事曆
+                                        <LucideIcon name="calendar" /> 匯入行事曆
                                     </div>
                                 </div>
                                 <button onClick={() => {
@@ -967,7 +975,7 @@
                                         alert('已成功清空所有行事曆資料！請重新匯入正確的檔案。');
                                     }
                                 }} className="flex-1 bg-red-50 border border-red-200 py-3 rounded-xl font-bold text-sm text-center text-red-700 shadow-sm flex items-center justify-center gap-2 hover:bg-red-100 transition-all">
-                                    <i data-lucide="trash-2"></i> 清空行事曆
+                                    <LucideIcon name="trash-2" /> 清空行事曆
                                 </button>
                                 <button onClick={() => {
                                     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -975,14 +983,14 @@
                                     const a = document.createElement('a'); a.href = url; a.download = `HR_Fusion_Backup_${new Date().toISOString().split('T')[0]}.json`;
                                     document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
                                 }} className="flex-1 bg-indigo-50 border border-indigo-200 py-3 rounded-xl font-bold text-sm text-center text-indigo-700 shadow-sm flex items-center justify-center gap-2 hover:bg-indigo-100 transition-all">
-                                    <i data-lucide="download-cloud"></i> 存檔下載
+                                    <LucideIcon name="download-cloud" /> 存檔下載
                                 </button>
                             </div>
                         </div>
                     </div>
 
                     <div className="card-data-container border-2 border-red-100">
-                        <h3 className="text-lg font-bold text-red-600 mb-4 flex items-center gap-2"><i data-lucide="shield-alert" className="text-red-500"></i> 系統安全設定</h3>
+                        <h3 className="text-lg font-bold text-red-600 mb-4 flex items-center gap-2"><LucideIcon name="shield-alert" className="text-red-500" /> 系統安全設定</h3>
                         <div>
                             <label className="block text-xs font-bold text-gray-500 mb-1">變更解鎖密碼 (6碼數字)</label>
                             <input type="password" maxLength={6} placeholder="輸入新密碼" onBlur={e => {
@@ -1014,14 +1022,14 @@
                                     <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#1E293B]">▲</div>
                                     <div className="flex flex-col">
                                         <span>HR 出勤系統</span>
-                                        <span className="text-[10px] text-gray-400 font-normal">v0.0.0.0.43</span>
+                                        <span className="text-[10px] text-gray-400 font-normal">v0.0.0.0.44</span>
                                     </div>
                                 </div>
                             </div>
                             <nav className="px-4 space-y-2 mt-4">
                                 {navItems.map(item => (
                                     <button key={item.id} onClick={() => setCurrentView(item.id)} className={`w-full flex items-center gap-3 px-4 py-3 ${currentView === item.id ? 'sidebar-item-active' : 'sidebar-item'}`}>
-                                        <i data-lucide={item.icon} className="w-5 h-5"></i> {item.label}
+                                        <LucideIcon name={item.icon} className="w-5 h-5" /> {item.label}
                                     </button>
                                 ))}
                             </nav>
@@ -1036,10 +1044,10 @@
                             </div>
                             <div className="flex items-center gap-1 md:gap-4">
                                 <button onClick={() => setIsAmountMasked(!isAmountMasked)} className="p-2 text-gray-400 hover:text-[var(--primary)] transition-colors flex items-center justify-center rounded-full active:bg-gray-100" title="隱私遮蔽">
-                                    <i data-lucide={isAmountMasked ? 'eye-off' : 'eye'} className="w-5 h-5"></i>
+                                    <LucideIcon name={isAmountMasked ? 'eye-off' : 'eye'} className="w-5 h-5" />
                                 </button>
                                 <button onClick={fetchFromCloud} className="p-2 md:px-4 md:py-2 md:border border-[var(--primary)] text-[var(--primary)] rounded-lg text-xs flex items-center justify-center gap-2 font-bold transition-colors hover:bg-[var(--surface)] active:scale-95" title="雲端同步">
-                                    <i data-lucide="refresh-cw" className="w-5 h-5 md:w-4 md:h-4"></i> 
+                                    <LucideIcon name="refresh-cw" className="w-5 h-5 md:w-4 md:h-4" /> 
                                     <span className="hidden md:inline">雲端同步</span>
                                 </button>
                             </div>
@@ -1055,8 +1063,11 @@
                             {currentView === 'employee' && renderEmployee()}
                         </main>
 
-                        {/* 手機版專用底部工作列 (Bottom Navigation)：純圖示極簡設計，最佳化比例與點擊範圍 */}
-                        <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex items-center justify-between h-[68px] z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-2 px-2">
+                        {/* 手機版專用底部工作列 (Bottom Navigation)：純圖示極簡設計，最佳化比例與點擊範圍，並相容 iOS 底部安全距離 */}
+                        <nav 
+                            className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex items-center justify-between min-h-[68px] z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] px-2 pt-2"
+                            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 8px)' }}
+                        >
                             {navItems.map(item => (
                                 <button 
                                     key={item.id} 
@@ -1064,7 +1075,7 @@
                                     className={`flex-1 flex items-center justify-center h-full transition-all active:scale-90 ${currentView === item.id ? 'text-[var(--primary)]' : 'text-gray-400 hover:text-[var(--primary)]'}`}
                                     title={item.label}
                                 >
-                                    <i data-lucide={item.icon} className="w-6 h-6"></i>
+                                    <LucideIcon name={item.icon} className="w-6 h-6" />
                                 </button>
                             ))}
                         </nav>
