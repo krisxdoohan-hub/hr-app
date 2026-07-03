@@ -24,6 +24,7 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
     <style>
         /* UI/UX Pro Max - Global Design Protocol */
         :root {
@@ -944,21 +945,80 @@
             };
 
             const handleCopyCode = () => {
-                const code = btoa(encodeURIComponent(JSON.stringify(data)));
-                navigator.clipboard.writeText(code)
-                    .then(() => alert('已複製系統代碼！\n請至另一台裝置的系統中點擊「貼上代碼」。'))
-                    .catch(() => alert('複製失敗，請確認瀏覽器權限。'));
+                try {
+                    // 第一重精簡：將所有欄位名稱縮寫為單一英文字母，大幅減少原始字元
+                    const shortData = {
+                        p: data.passcode,
+                        g: data.gasUrl,
+                        m: data.monthlySalaries,
+                        d: data.dependentsCount,
+                        e: data.employmentStartDate,
+                        h: data.historicalLeave ? {
+                            a: data.historicalLeave.annual,
+                            s: data.historicalLeave.sick,
+                            p: data.historicalLeave.personal
+                        } : { a: 0, s: 0, p: 0 },
+                        r: data.records ? data.records.map(r => ({
+                            i: r.id,
+                            t: r.date,
+                            y: r.type,
+                            n: r.time,
+                            u: r.hours,
+                            a: r.amount
+                        })) : [],
+                        o: data.holidays || {}
+                    };
+                    // 第二重精簡：使用 LZString 進行高密度二進位演算法壓縮並轉為 Base64 文字
+                    const compressed = LZString.compressToBase64(JSON.stringify(shortData));
+                    
+                    navigator.clipboard.writeText(compressed)
+                        .then(() => alert('已複製經過高度壓縮的系統轉移代碼！\n字串已大幅縮短，請直接至另一台裝置點擊「貼上代碼」格式。'))
+                        .catch(() => alert('複製失敗，請確認瀏覽器權限。'));
+                } catch (err) {
+                    alert('代碼壓縮失敗：' + err.message);
+                }
             };
+
             const handlePasteCode = () => {
                 const code = prompt('請在此貼上跨裝置轉移代碼：');
-                if(!code) return;
+                if (!code) return;
                 try {
-                    const imported = JSON.parse(decodeURIComponent(atob(code)));
-                    if(imported && imported.records) {
-                        syncToCloud({...data, ...imported}, true);
-                        alert('代碼載入成功！資料已同步。');
-                    } else { throw new Error('Invalid format'); }
-                } catch(err) { alert('載入失敗：代碼無效或已損毀！'); }
+                    // 解壓縮還原
+                    const decompressedStr = LZString.decompressFromBase64(code.trim());
+                    if (!decompressedStr) {
+                        alert('解壓縮失敗：代碼格式不正確或內容已損毀！');
+                        return;
+                    }
+                    
+                    const short = JSON.parse(decompressedStr);
+                    // 將縮寫欄位還原回系統原生對應欄位
+                    const imported = {
+                        passcode: short.p || '123456',
+                        gasUrl: short.g || '',
+                        monthlySalaries: short.m || {},
+                        dependentsCount: short.d || 0,
+                        employmentStartDate: short.e || '2023-08-07',
+                        historicalLeave: short.h ? {
+                            annual: short.h.a || 0,
+                            sick: short.h.s || 0,
+                            personal: short.h.p || 0
+                        } : { annual: 0, sick: 0, personal: 0 },
+                        records: short.r ? short.r.map(r => ({
+                            id: r.i,
+                            date: r.t,
+                            type: r.y,
+                            time: r.n,
+                            hours: r.u,
+                            amount: r.a
+                        })) : [],
+                        holidays: short.o || {}
+                    };
+                    
+                    syncToCloud({ ...data, ...imported }, true);
+                    alert('代碼載入成功！全系統資料已完整還原並自動同步至雲端。');
+                } catch (err) {
+                    alert('載入失敗：此代碼無效或版本不相容。');
+                }
             };
 
             const renderEmployee = () => (
@@ -1066,7 +1126,7 @@
                                 <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#1E293B]">▲</div>
                                 <div className="flex flex-col">
                                     <span>HR 出勤系統</span>
-                                    <span className="text-[10px] text-gray-400 font-normal">v0.0.0.0.55 </span>
+                                    <span className="text-[10px] text-gray-400 font-normal">v0.0.0.0.56 </span>
                                 </div>
                             </div>
                             <nav className="px-4 space-y-2 mt-4">
