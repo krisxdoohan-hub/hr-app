@@ -369,18 +369,18 @@
                         <h2 className="text-xl font-bold text-gray-800">首頁總覽</h2>
                         <input type="month" value={targetMonth} onChange={(e) => setTargetMonth(e.target.value)} className="px-4 py-2 border rounded-lg font-bold text-gray-700 outline-none focus:border-[var(--primary)]" />
                     </div>
-                    <div className="grid grid-cols-3 gap-6 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                         <StatCard icon="calendar-check" title="本月出勤天數" value={`${actualWorkDays} 天`} subtext="基於打卡紀錄" bgColor="bg-blue-50" iconColor="text-blue-500" />
                         <StatCard icon="clock" title="本月加班時數" value={otHours} highlight="小時" bgColor="bg-green-50" iconColor="text-green-500" />
                         <StatCard icon="plane" title="本月請假時數" value={leaveHours} highlight="小時" bgColor="bg-orange-50" iconColor="text-orange-500" />
                     </div>
-                    <div className="grid grid-cols-3 gap-6 mb-6">
-                        <div className="card-data-container col-span-2">
-                            <div className="flex justify-between items-center mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <div className="card-data-container md:col-span-2 overflow-x-auto">
+                            <div className="flex justify-between items-center mb-6 min-w-min">
                                 <h2 className="text-lg font-bold text-gray-800">本年度出勤與變動</h2>
-                                <button onClick={() => setCurrentView('records')} className="text-[var(--primary)] text-sm flex items-center hover:underline">查看完整紀錄 <i data-lucide="chevron-right" className="w-4 h-4"></i></button>
+                                <button onClick={() => setCurrentView('records')} className="text-[var(--primary)] text-sm flex items-center hover:underline whitespace-nowrap ml-4">查看完整紀錄 <i data-lucide="chevron-right" className="w-4 h-4"></i></button>
                             </div>
-                            <table className="w-full text-center text-sm">
+                            <table className="w-full text-center text-sm min-w-[400px]">
                                 <thead>
                                     <tr className="text-gray-500 border-b border-gray-100">
                                         <th className="py-3 font-medium">日期</th>
@@ -407,7 +407,7 @@
                         <div className="card-data-container">
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-lg font-bold text-gray-800">假別餘額 (時數)</h2>
-                                <button onClick={() => setCurrentView('leave')} className="text-[var(--primary)] text-sm flex items-center hover:underline">管理 <i data-lucide="chevron-right" className="w-4 h-4"></i></button>
+                                <button onClick={() => setCurrentView('leave')} className="text-[var(--primary)] text-sm flex items-center hover:underline whitespace-nowrap">管理 <i data-lucide="chevron-right" className="w-4 h-4"></i></button>
                             </div>
                             <div className="space-y-6">
                                 {[ 
@@ -439,13 +439,13 @@
                         </div>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-6">
-                        <div className="card-data-container">
-                            <div className="flex justify-between items-center mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="card-data-container overflow-x-auto">
+                            <div className="flex justify-between items-center mb-6 min-w-min">
                                 <h2 className="text-lg font-bold text-gray-800">近期請假申請</h2>
-                                <button onClick={() => setCurrentView('records')} className="text-[var(--primary)] text-sm font-medium hover:underline">查看全部</button>
+                                <button onClick={() => setCurrentView('records')} className="text-[var(--primary)] text-sm font-medium hover:underline whitespace-nowrap ml-4">查看全部</button>
                             </div>
-                            <div className="space-y-4 text-sm">
+                            <div className="space-y-4 text-sm min-w-[300px]">
                                 {allLeaves.length === 0 ? (
                                     <div className="text-gray-400 py-4 text-center">目前尚無請假紀錄</div>
                                 ) : (
@@ -467,8 +467,8 @@
 
                         <div className="card-data-container">
                             <h2 className="text-lg font-bold text-gray-800 mb-6">出勤狀態 (本月)</h2>
-                            <div className="flex items-center justify-around">
-                                <div className="relative w-36 h-36 rounded-full flex items-center justify-center" style={{
+                            <div className="flex flex-col xl:flex-row items-center justify-around gap-6">
+                                <div className="relative w-36 h-36 rounded-full flex items-center justify-center shrink-0" style={{
                                     background: `conic-gradient(#3B82F6 0% ${(actualWorkDays/weekdaysInMonth)*100}%, #F97316 ${(actualWorkDays/weekdaysInMonth)*100}% ${((actualWorkDays+leaveDaysThisMonth)/weekdaysInMonth)*100}%, #22C55E ${((actualWorkDays+leaveDaysThisMonth)/weekdaysInMonth)*100}% ${((actualWorkDays+leaveDaysThisMonth+otDaysThisMonth)/weekdaysInMonth)*100}%, #9CA3AF ${((actualWorkDays+leaveDaysThisMonth+otDaysThisMonth)/weekdaysInMonth)*100}% 100%)`
                                 }}>
                                     <div className="w-28 h-28 bg-white rounded-full flex flex-col items-center justify-center">
@@ -476,20 +476,20 @@
                                         <span className="text-xl font-bold text-gray-800">{weekdaysInMonth} 天</span>
                                     </div>
                                 </div>
-                                <div className="space-y-4 text-sm">
-                                    <div className="flex items-center gap-6">
+                                <div className="space-y-4 text-sm w-full md:w-auto">
+                                    <div className="flex items-center justify-between xl:justify-start gap-6">
                                         <div className="flex items-center gap-2 w-16"><div className="w-3 h-3 rounded-full bg-blue-500"></div><span className="text-gray-700">出勤</span></div>
                                         <span className="text-gray-600 font-medium">{actualWorkDays} 天 ({Math.round((actualWorkDays/weekdaysInMonth)*100 || 0)}%)</span>
                                     </div>
-                                    <div className="flex items-center gap-6">
+                                    <div className="flex items-center justify-between xl:justify-start gap-6">
                                         <div className="flex items-center gap-2 w-16"><div className="w-3 h-3 rounded-full bg-orange-500"></div><span className="text-gray-700">請假</span></div>
                                         <span className="text-gray-600 font-medium">{leaveDaysThisMonth} 天 ({Math.round((leaveDaysThisMonth/weekdaysInMonth)*100 || 0)}%)</span>
                                     </div>
-                                    <div className="flex items-center gap-6">
+                                    <div className="flex items-center justify-between xl:justify-start gap-6">
                                         <div className="flex items-center gap-2 w-16"><div className="w-3 h-3 rounded-full bg-green-500"></div><span className="text-gray-700">加班</span></div>
                                         <span className="text-gray-600 font-medium">{otDaysThisMonth} 天 ({Math.round((otDaysThisMonth/weekdaysInMonth)*100 || 0)}%)</span>
                                     </div>
-                                    <div className="flex items-center gap-6">
+                                    <div className="flex items-center justify-between xl:justify-start gap-6">
                                         <div className="flex items-center gap-2 w-16"><div className="w-3 h-3 rounded-full bg-gray-400"></div><span className="text-gray-700">未打卡</span></div>
                                         <span className="text-gray-600 font-medium">{missedDaysThisMonth} 天 ({Math.round((missedDaysThisMonth/weekdaysInMonth)*100 || 0)}%)</span>
                                     </div>
@@ -554,20 +554,20 @@
                 <div className="fade-in max-w-4xl mx-auto space-y-6">
                     <h2 className="text-xl font-bold text-gray-800 mb-6">出勤打卡與申報</h2>
                     
-                    <div className="card-data-container border-l-4 border-blue-500 mb-6 flex justify-between items-center bg-blue-50/30">
+                    <div className="card-data-container border-l-4 border-blue-500 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-blue-50/30">
                         <div>
                             <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><i data-lucide="clock" className="text-blue-500"></i> 每日出勤打卡</h3>
                             <p className="text-xs text-gray-500 mt-1">若未手動打卡，系統將於規定時段自動推算並產生紀錄。</p>
                         </div>
-                        <div className="flex gap-4">
-                            <button onClick={() => handleManualPunch('punch_in')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-all shadow-sm">上班打卡</button>
-                            <button onClick={() => handleManualPunch('punch_out')} className="bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-6 rounded-lg transition-all shadow-sm">下班打卡</button>
+                        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+                            <button onClick={() => handleManualPunch('punch_in')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 md:py-2 px-6 rounded-lg transition-all shadow-sm w-full sm:w-auto text-lg md:text-base">上班打卡</button>
+                            <button onClick={() => handleManualPunch('punch_out')} className="bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 md:py-2 px-6 rounded-lg transition-all shadow-sm w-full sm:w-auto text-lg md:text-base">下班打卡</button>
                         </div>
                     </div>
 
                     <div className="card-data-container border-l-4 border-emerald-500">
                         <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="calendar-check" className="text-emerald-500"></i> 出勤異動申報</h3>
-                        <form onSubmit={handleAddAttendance} className="grid grid-cols-4 gap-4 items-end">
+                        <form onSubmit={handleAddAttendance} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">日期</label>
                                 <input type="date" required value={attForm.date} onChange={e => setAttForm({...attForm, date: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold" />
@@ -582,13 +582,13 @@
                                 <label className="block text-xs font-bold text-gray-500 mb-1">時數</label>
                                 <input type="number" step="0.5" required min="0.5" value={attForm.hours} onChange={e => setAttForm({...attForm, hours: Number(e.target.value)})} className="w-full px-3 py-2 border rounded-lg font-bold" />
                             </div>
-                            <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg transition-all shadow-sm">申報送出</button>
+                            <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 md:py-2 rounded-lg transition-all shadow-sm w-full">申報送出</button>
                         </form>
                     </div>
 
                     <div className="card-data-container border-l-4 border-yellow-500">
                         <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="sack-dollar" className="text-yellow-500"></i> 額外獎金收入申報</h3>
-                        <form onSubmit={handleAddBonus} className="grid grid-cols-4 gap-4 items-end">
+                        <form onSubmit={handleAddBonus} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">發放日期</label>
                                 <input type="date" required value={bonusForm.date} onChange={e => setBonusForm({...bonusForm, date: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold" />
@@ -606,7 +606,7 @@
                                 <label className="block text-xs font-bold text-gray-500 mb-1">金額 (NT$)</label>
                                 <input type="number" required min="1" value={bonusForm.amount} onChange={e => setBonusForm({...bonusForm, amount: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold" />
                             </div>
-                            <button type="submit" className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 rounded-lg transition-all shadow-sm">新增獎金</button>
+                            <button type="submit" className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 md:py-2 rounded-lg transition-all shadow-sm w-full">新增獎金</button>
                         </form>
                     </div>
                 </div>
@@ -707,7 +707,7 @@
                     
                     <div className="card-data-container border-l-4 border-[#E67E22] mb-6">
                         <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="plane" className="text-[#E67E22]"></i> 請假申報</h3>
-                        <form onSubmit={handleAddLeave} className="grid grid-cols-4 gap-4 items-end">
+                        <form onSubmit={handleAddLeave} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">發生日期</label>
                                 <input type="date" required value={leaveForm.date} onChange={e => setLeaveForm({...leaveForm, date: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold" />
@@ -724,26 +724,26 @@
                                 <label className="block text-xs font-bold text-gray-500 mb-1">時數</label>
                                 <input type="number" step="0.5" required min="0.5" value={leaveForm.hours} onChange={e => setLeaveForm({...leaveForm, hours: Number(e.target.value)})} className="w-full px-3 py-2 border rounded-lg font-bold" />
                             </div>
-                            <button type="submit" className="bg-[#D35400] hover:bg-[#E67E22] text-white font-bold py-2 rounded-lg transition-all shadow-sm">申報送出</button>
+                            <button type="submit" className="bg-[#D35400] hover:bg-[#E67E22] text-white font-bold py-3 md:py-2 rounded-lg transition-all shadow-sm w-full">申報送出</button>
                         </form>
                     </div>
 
                     <div className="card-data-container mb-6">
-                        <div className="flex justify-between items-center mb-6 border-b pb-4">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b pb-4">
                             <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><i data-lucide="calendar-range" className="text-amber-500"></i> 假別餘額管控</h3>
                             <button onClick={() => {
                                 if(window.confirm('此動作將歸零「病假」與「事假」的期初時數，確定要重置嗎？')) {
                                     syncToCloud({...data, historicalLeave: {...data.historicalLeave, sick: 0, personal: 0}});
                                     alert('已重置');
                                 }
-                            }} className="btn-outline-action px-3 py-1 rounded text-xs font-bold">全部歸零</button>
+                            }} className="btn-outline-action px-3 py-2 rounded-lg text-sm font-bold w-full sm:w-auto">全部歸零</button>
                         </div>
-                        <div className="grid grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             {[ { key: 'annual', name: '特休', color: 'bg-blue-400' }, { key: 'sick', name: '病假', color: 'bg-amber-400' }, { key: 'personal', name: '事假', color: 'bg-red-400' } ].map(item => (
                                 <div key={item.key} className="bg-slate-50 p-4 rounded-xl border relative overflow-hidden">
                                     <div className={`absolute left-0 top-0 w-1 h-full ${item.color}`}></div>
                                     <div className="text-xs font-black text-gray-400 mb-2 uppercase tracking-wide">{item.name}</div>
-                                    <div className="text-2xl font-extrabold text-gray-800 leading-none mb-4">{formatDaysHours(Math.max(0, leaveLimits[item.key] - leaveUsed[item.key]))}</div>
+                                    <div className="text-3xl md:text-2xl font-extrabold text-gray-800 leading-none mb-4">{formatDaysHours(Math.max(0, leaveLimits[item.key] - leaveUsed[item.key]))}</div>
                                     <div className="pt-3 border-t border-gray-200 flex justify-between items-center text-sm">
                                         <span className="text-gray-500 font-bold">期初已休(時)</span>
                                         <input type="number" className="w-16 text-center border rounded px-1 py-1 font-bold outline-none focus:border-[var(--primary)]"
@@ -763,10 +763,10 @@
                     <div className="bg-[var(--primary)] p-8 rounded-3xl text-white shadow-xl text-center relative overflow-hidden">
                         <div className="absolute -left-4 -bottom-4 opacity-10 text-8xl"><i data-lucide="wallet" className="w-48 h-48"></i></div>
                         <div className="text-sm opacity-80 mb-2 font-bold">{targetMonth.replace('-','年')}月 實發預估</div>
-                        <div className="text-5xl font-black relative z-10 tracking-tight">NT$ {isAmountMasked ? '***,***' : estimatedFinalSalary.toLocaleString()}</div>
-                        <div className="text-xs opacity-80 mt-4 bg-black/20 inline-block px-4 py-1.5 rounded-full relative z-10">底薪 + 加班與獎金 - 請假扣款 - 法定保險</div>
+                        <div className="text-4xl md:text-5xl font-black relative z-10 tracking-tight">NT$ {isAmountMasked ? '***,***' : estimatedFinalSalary.toLocaleString()}</div>
+                        <div className="text-[10px] md:text-xs opacity-80 mt-4 bg-black/20 inline-block px-4 py-1.5 rounded-full relative z-10">底薪 + 加班與獎金 - 請假扣款 - 法定保險</div>
                     </div>
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="card-data-container">
                             <h3 className="text-sm font-bold text-gray-400 mb-4 border-b pb-2">本月變動明細</h3>
                             <div className="space-y-3 text-sm font-bold">
@@ -912,7 +912,7 @@
                     
                     <div className="card-data-container border-t-4 border-[var(--primary)]">
                         <h3 className="text-lg font-bold text-gray-800 mb-4">基本參數設定</h3>
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">當月設定底薪 (NT$)</label>
                                 <input type="number" value={currentSalary} onChange={e => syncToCloud({...data, monthlySalaries: {...data.monthlySalaries, [targetMonth]: Number(e.target.value)}})} className="w-full px-3 py-2 border rounded-lg font-bold focus:border-[var(--primary)] outline-none" />
@@ -926,7 +926,7 @@
                                     <option value="3">3 位(含)以上</option>
                                 </select>
                             </div>
-                            <div className="col-span-2">
+                            <div className="md:col-span-2">
                                 <label className="block text-xs font-bold text-gray-500 mb-1">到職日 (用於計算特休週年制)</label>
                                 <input type="date" value={data.employmentStartDate} onChange={e => syncToCloud({...data, employmentStartDate: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold focus:border-[var(--primary)] outline-none" />
                             </div>
@@ -940,16 +940,16 @@
                                 <label className="block text-xs font-bold text-gray-500 mb-1">GAS 雲端資料庫網址 (Web App URL)</label>
                                 <input type="text" value={data.gasUrl} onChange={e => syncToCloud({...data, gasUrl: e.target.value})} placeholder="https://script.google.com/macros/s/..." className="w-full px-3 py-2 border rounded-lg font-bold focus:border-[var(--primary)] outline-none text-xs text-blue-600 bg-blue-50/50" />
                             </div>
-                            <div className="flex gap-4 pt-2">
-                                <div className="flex-1 relative">
-                                    <input type="file" onChange={handleJSONImport} accept="application/json" className="absolute inset-0 opacity-0 cursor-pointer z-10" />
-                                    <div className="h-full bg-emerald-50 border border-emerald-200 py-3 rounded-xl font-bold text-sm text-center text-emerald-700 shadow-sm flex items-center justify-center gap-2 pointer-events-none transition-all">
+                            <div className="flex flex-col md:flex-row gap-4 pt-2">
+                                <div className="flex-1 relative w-full">
+                                    <input type="file" onChange={handleJSONImport} accept="application/json" className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full" />
+                                    <div className="h-full bg-emerald-50 border border-emerald-200 py-3 rounded-xl font-bold text-sm text-center text-emerald-700 shadow-sm flex items-center justify-center gap-2 pointer-events-none transition-all w-full">
                                         <i data-lucide="upload-cloud"></i> 匯入備份 (支援新/舊版)
                                     </div>
                                 </div>
-                                <div className="flex-1 relative">
-                                    <input type="file" onChange={handleHolidayImport} accept=".json,.csv,application/json,text/csv" className="absolute inset-0 opacity-0 cursor-pointer z-10" />
-                                    <div className="h-full bg-orange-50 border border-orange-200 py-3 rounded-xl font-bold text-sm text-center text-orange-700 shadow-sm flex items-center justify-center gap-2 pointer-events-none transition-all">
+                                <div className="flex-1 relative w-full">
+                                    <input type="file" onChange={handleHolidayImport} accept=".json,.csv,application/json,text/csv" className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full" />
+                                    <div className="h-full bg-orange-50 border border-orange-200 py-3 rounded-xl font-bold text-sm text-center text-orange-700 shadow-sm flex items-center justify-center gap-2 pointer-events-none transition-all w-full">
                                         <i data-lucide="calendar"></i> 匯入年度行事曆
                                     </div>
                                 </div>
@@ -958,7 +958,7 @@
                                         syncToCloud({...data, holidays: {}});
                                         alert('已成功清空所有行事曆資料！請重新匯入正確的檔案。');
                                     }
-                                }} className="flex-1 bg-red-50 border border-red-200 py-3 rounded-xl font-bold text-sm text-center text-red-700 shadow-sm flex items-center justify-center gap-2 hover:bg-red-100 transition-all">
+                                }} className="flex-1 bg-red-50 border border-red-200 py-3 rounded-xl font-bold text-sm text-center text-red-700 shadow-sm flex items-center justify-center gap-2 hover:bg-red-100 transition-all w-full">
                                     <i data-lucide="trash-2"></i> 清空行事曆
                                 </button>
                                 <button onClick={() => {
@@ -966,7 +966,7 @@
                                     const url = URL.createObjectURL(blob);
                                     const a = document.createElement('a'); a.href = url; a.download = `HR_Fusion_Backup_${new Date().toISOString().split('T')[0]}.json`;
                                     document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-                                }} className="flex-1 bg-indigo-50 border border-indigo-200 py-3 rounded-xl font-bold text-sm text-center text-indigo-700 shadow-sm flex items-center justify-center gap-2 hover:bg-indigo-100 transition-all">
+                                }} className="flex-1 bg-indigo-50 border border-indigo-200 py-3 rounded-xl font-bold text-sm text-center text-indigo-700 shadow-sm flex items-center justify-center gap-2 hover:bg-indigo-100 transition-all w-full">
                                     <i data-lucide="download-cloud"></i> 下載本機存檔
                                 </button>
                             </div>
@@ -1005,7 +1005,7 @@
                                 <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#1E293B]">▲</div>
                                 <div className="flex flex-col">
                                     <span>HR 出勤系統</span>
-                                    <span className="text-[10px] text-gray-400 font-normal">v0.0.0.0.53 </span>
+                                    <span className="text-[10px] text-gray-400 font-normal">v0.0.0.0.54 </span>
                                 </div>
                             </div>
                             <nav className="px-4 space-y-2 mt-4">
