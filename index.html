@@ -567,7 +567,7 @@
 
                     <div className="card-data-container border-l-4 border-emerald-500">
                         <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="calendar-check" className="text-emerald-500"></i> 出勤異動申報</h3>
-                        <form onSubmit={handleAddAttendance} className="grid grid-cols-4 gap-4 items-end">
+                        <form onSubmit={handleAddAttendance} className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-end">
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">日期</label>
                                 <input type="date" required value={attForm.date} onChange={e => setAttForm({...attForm, date: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold" />
@@ -588,7 +588,7 @@
 
                     <div className="card-data-container border-l-4 border-yellow-500">
                         <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="sack-dollar" className="text-yellow-500"></i> 額外獎金收入申報</h3>
-                        <form onSubmit={handleAddBonus} className="grid grid-cols-4 gap-4 items-end">
+                        <form onSubmit={handleAddBonus} className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-end">
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">發放日期</label>
                                 <input type="date" required value={bonusForm.date} onChange={e => setBonusForm({...bonusForm, date: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold" />
@@ -707,7 +707,7 @@
                     
                     <div className="card-data-container border-l-4 border-[#E67E22] mb-6">
                         <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="plane" className="text-[#E67E22]"></i> 請假申報</h3>
-                        <form onSubmit={handleAddLeave} className="grid grid-cols-4 gap-4 items-end">
+                        <form onSubmit={handleAddLeave} className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-end">
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">發生日期</label>
                                 <input type="date" required value={leaveForm.date} onChange={e => setLeaveForm({...leaveForm, date: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold" />
@@ -1005,7 +1005,7 @@
                                 <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#1E293B]">▲</div>
                                 <div className="flex flex-col">
                                     <span>HR 出勤系統</span>
-                                    <span className="text-[10px] text-gray-400 font-normal">v0.0.0.0.5 </span>
+                                    <span className="text-[10px] text-gray-400 font-normal">v0.0.0.0.51 </span>
                                 </div>
                             </div>
                             <nav className="px-4 space-y-2 mt-4">
@@ -1018,12 +1018,11 @@
                         </div>
                     </div>
 
-                    {/* 手機/平板版底部導覽列：採用全 Icon 點擊設計 */}
+                    {/* 手機/平板版底部導覽列：採用純 Icon 點擊設計 */}
                     <div className="lg:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex justify-around items-center h-16 z-50 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
                         {navItems.map(item => (
-                            <button key={item.id} onClick={() => setCurrentView(item.id)} className={`flex flex-col items-center justify-center w-full h-full transition-colors ${currentView === item.id ? 'text-[var(--primary)]' : 'text-gray-400 hover:text-gray-600'}`}>
-                                <i data-lucide={item.icon} className="w-6 h-6 mb-1"></i>
-                                <span className="text-[10px] scale-90">{item.label}</span>
+                            <button key={item.id} onClick={() => setCurrentView(item.id)} className={`flex flex-col items-center justify-center w-full h-full transition-colors ${currentView === item.id ? 'text-[var(--primary)]' : 'text-gray-400 hover:text-gray-600'}`} title={item.label}>
+                                <div dangerouslySetInnerHTML={{ __html: `<i data-lucide="${item.icon}" class="w-6 h-6"></i>` }}></div>
                             </button>
                         ))}
                     </div>
@@ -1031,11 +1030,13 @@
                     <div className="flex-1 flex flex-col lg:ml-64 bg-[var(--surface)] relative overflow-x-hidden">
                         <header className="h-16 lg:h-20 bg-white flex items-center justify-between px-4 lg:px-8 border-b border-gray-100 sticky top-0 z-10">
                             <div className="flex items-center gap-3 lg:gap-4">
-                                <h1 className="text-lg lg:text-xl font-semibold text-gray-800">{navItems.find(n => n.id === currentView)?.label}</h1>
+                                <div className="flex flex-col">
+                                    <h1 className="text-lg lg:text-xl font-semibold text-gray-800">{navItems.find(n => n.id === currentView)?.label}</h1>
+                                    <span className="lg:hidden text-[10px] text-gray-400 font-normal mt-0.5">v0.0.0.0.2</span>
+                                </div>
                                 {isLoading && <div className="loader ml-2 lg:ml-4"></div>}
                             </div>
-                            <div className="flex items-center gap-3 lg:gap-6">
-                                <button onClick={() => setIsAmountMasked(!isAmountMasked)} className="text-gray-500 hover:text-[var(--primary)] transition-colors p-2" title="隱私遮蔽">
+                            <div className="flex items-center gap-3 lg:gap-6">ountMasked)} className="text-gray-500 hover:text-[var(--primary)] transition-colors p-2" title="隱私遮蔽">
                                     <i data-lucide={isAmountMasked ? 'eye-off' : 'eye'} className="w-6 h-6 lg:w-5 lg:h-5"></i>
                                 </button>
                                 {/* 右上角雲端按鈕改為自動縮小為 Icon */}
