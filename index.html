@@ -89,7 +89,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const APP_VERSION = 'v0.0.0.0.6 - 移轉代碼';
+        const APP_VERSION = 'v0.0.0.0.61 - 結構查詢微調';
         const { useState, useEffect, useMemo, useRef } = React;
         const STORAGE_KEY = 'HR_APP_DATA_V10_FUSION';
 
@@ -812,8 +812,49 @@
                             <h3 className="text-sm font-bold text-gray-400 mb-4 border-b pb-2">本月變動明細</h3>
                             <div className="space-y-3 text-sm font-bold">
                                 <div className="flex justify-between"><span className="text-gray-600">本月設定底薪</span><span>{isAmountMasked ? '***' : currentSalary.toLocaleString()}</span></div>
-                                <div className="flex justify-between"><span className="text-gray-600">加給與獎金</span><span className="text-emerald-500">+{isAmountMasked ? '***' : monthlyRecords.filter(r => r.amount > 0).reduce((s,r)=>s+r.amount,0).toLocaleString()}</span></div>
-                                <div className="flex justify-between"><span className="text-gray-600">請假扣款</span><span className="text-red-500">{isAmountMasked ? '***' : monthlyRecords.filter(r => r.amount < 0).reduce((s,r)=>s+r.amount,0).toLocaleString()}</span></div>
+                                
+                                {/* 加班費區塊 */}
+                                {otDaysThisMonth > 0 && (
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-600">加班費 <span className="text-xs text-gray-400 font-normal ml-1">({otDaysThisMonth} 天)</span></span>
+                                        <span className="text-emerald-500">+{isAmountMasked ? '***' : monthlyRecords.filter(r => r.type === 'overtime').reduce((s,r)=>s+r.amount,0).toLocaleString()}</span>
+                                    </div>
+                                )}
+
+                                {/* 獎金分列區塊 */}
+                                {monthlyRecords.filter(r => r.type.includes('bonus')).map(r => (
+                                    <div key={r.id} className="flex justify-between items-center">
+                                        <span className="text-gray-600">
+                                            {r.type === 'bonus_festival' ? '三節獎金' : r.type === 'bonus_incentive' ? '激勵獎金' : r.type === 'bonus_yearend' ? '年終獎金' : r.type === 'bonus_birthday' ? '生日禮金' : '其他獎金'}
+                                        </span>
+                                        <span className="text-emerald-500">+{isAmountMasked ? '***' : r.amount.toLocaleString()}</span>
+                                    </div>
+                                ))}
+
+                                {/* 若無加班與獎金的預設顯示 */}
+                                {otDaysThisMonth === 0 && !monthlyRecords.some(r => r.type.includes('bonus')) && (
+                                    <div className="flex justify-between"><span className="text-gray-600">加給與獎金</span><span className="text-gray-400">0</span></div>
+                                )}
+
+                                {/* 請假扣款分列區塊 */}
+                                {['sick', 'personal'].map(type => {
+                                    const records = monthlyRecords.filter(r => r.type === type && r.amount < 0);
+                                    if (records.length === 0) return null;
+                                    const totalHours = records.reduce((s, r) => s + r.hours, 0);
+                                    const totalAmount = records.reduce((s, r) => s + r.amount, 0);
+                                    const label = type === 'sick' ? '病假扣款' : '事假扣款';
+                                    return (
+                                        <div key={type} className="flex justify-between items-center">
+                                            <span className="text-gray-600">{label} <span className="text-xs text-gray-400 font-normal ml-1">({totalHours} 小時)</span></span>
+                                            <span className="text-red-500">{isAmountMasked ? '***' : totalAmount.toLocaleString()}</span>
+                                        </div>
+                                    );
+                                })}
+
+                                {/* 若無任何請假扣款的預設顯示 */}
+                                {!monthlyRecords.some(r => ['sick', 'personal'].includes(r.type) && r.amount < 0) && (
+                                    <div className="flex justify-between"><span className="text-gray-600">請假扣款</span><span className="text-gray-400">0</span></div>
+                                )}
                             </div>
                         </div>
                         <div className="card-data-container relative select-none"
