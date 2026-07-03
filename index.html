@@ -89,7 +89,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const APP_VERSION = 'v0.0.0.0.56';
+        const APP_VERSION = 'v0.0.0.0.57';
         const { useState, useEffect, useMemo, useRef } = React;
         const STORAGE_KEY = 'HR_APP_DATA_V10_FUSION';
 
@@ -140,6 +140,8 @@
             const [isLoading, setIsLoading] = useState(false);
             const [isAmountMasked, setIsAmountMasked] = useState(false);
             const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7));
+            
+            const [transferModal, setTransferModal] = useState({ isOpen: false, mode: '', text: '' });
             
             const [leaveForm, setLeaveForm] = useState({ date: new Date().toISOString().split('T')[0], endDate: new Date().toISOString().split('T')[0], type: 'annual', hours: 8 });
             const [showBrackets, setShowBrackets] = useState(false);
@@ -947,79 +949,41 @@
 
             const handleCopyCode = () => {
                 try {
-                    // 第一重精簡：將所有欄位名稱縮寫為單一英文字母，大幅減少原始字元
                     const shortData = {
-                        p: data.passcode,
-                        g: data.gasUrl,
-                        m: data.monthlySalaries,
-                        d: data.dependentsCount,
-                        e: data.employmentStartDate,
-                        h: data.historicalLeave ? {
-                            a: data.historicalLeave.annual,
-                            s: data.historicalLeave.sick,
-                            p: data.historicalLeave.personal
-                        } : { a: 0, s: 0, p: 0 },
-                        r: data.records ? data.records.map(r => ({
-                            i: r.id,
-                            t: r.date,
-                            y: r.type,
-                            n: r.time,
-                            u: r.hours,
-                            a: r.amount
-                        })) : [],
+                        p: data.passcode, g: data.gasUrl, m: data.monthlySalaries, d: data.dependentsCount, e: data.employmentStartDate,
+                        h: data.historicalLeave ? { a: data.historicalLeave.annual, s: data.historicalLeave.sick, p: data.historicalLeave.personal } : { a: 0, s: 0, p: 0 },
+                        r: data.records ? data.records.map(r => ({ i: r.id, t: r.date, y: r.type, n: r.time, u: r.hours, a: r.amount })) : [],
                         o: data.holidays || {}
                     };
-                    // 第二重精簡：使用 LZString 進行高密度二進位演算法壓縮並轉為 Base64 文字
                     const compressed = LZString.compressToBase64(JSON.stringify(shortData));
-                    
-                    navigator.clipboard.writeText(compressed)
-                        .then(() => alert('已複製經過高度壓縮的系統轉移代碼！\n字串已大幅縮短，請直接至另一台裝置點擊「貼上代碼」格式。'))
-                        .catch(() => alert('複製失敗，請確認瀏覽器權限。'));
-                } catch (err) {
-                    alert('代碼壓縮失敗：' + err.message);
-                }
+                    // 改為開啟自訂視窗並填入代碼
+                    setTransferModal({ isOpen: true, mode: 'copy', text: compressed });
+                } catch (err) { alert('代碼壓縮失敗：' + err.message); }
             };
 
             const handlePasteCode = () => {
-                const code = prompt('請在此貼上跨裝置轉移代碼：');
-                if (!code) return;
+                // 改為開啟空白的自訂視窗準備接收貼上
+                setTransferModal({ isOpen: true, mode: 'paste', text: '' });
+            };
+            
+            const processPastedCode = () => {
+                if (!transferModal.text) return alert('請先貼上代碼');
                 try {
-                    // 解壓縮還原
-                    const decompressedStr = LZString.decompressFromBase64(code.trim());
-                    if (!decompressedStr) {
-                        alert('解壓縮失敗：代碼格式不正確或內容已損毀！');
-                        return;
-                    }
+                    const decompressedStr = LZString.decompressFromBase64(transferModal.text.trim());
+                    if (!decompressedStr) return alert('解壓縮失敗：代碼格式不正確或內容已損毀！');
                     
                     const short = JSON.parse(decompressedStr);
-                    // 將縮寫欄位還原回系統原生對應欄位
                     const imported = {
-                        passcode: short.p || '123456',
-                        gasUrl: short.g || '',
-                        monthlySalaries: short.m || {},
-                        dependentsCount: short.d || 0,
-                        employmentStartDate: short.e || '2023-08-07',
-                        historicalLeave: short.h ? {
-                            annual: short.h.a || 0,
-                            sick: short.h.s || 0,
-                            personal: short.h.p || 0
-                        } : { annual: 0, sick: 0, personal: 0 },
-                        records: short.r ? short.r.map(r => ({
-                            id: r.i,
-                            date: r.t,
-                            type: r.y,
-                            time: r.n,
-                            hours: r.u,
-                            amount: r.a
-                        })) : [],
+                        passcode: short.p || '123456', gasUrl: short.g || '', monthlySalaries: short.m || {}, dependentsCount: short.d || 0, employmentStartDate: short.e || '2023-08-07',
+                        historicalLeave: short.h ? { annual: short.h.a || 0, sick: short.h.s || 0, personal: short.h.p || 0 } : { annual: 0, sick: 0, personal: 0 },
+                        records: short.r ? short.r.map(r => ({ id: r.i, date: r.t, type: r.y, time: r.n, hours: r.u, amount: r.a })) : [],
                         holidays: short.o || {}
                     };
                     
                     syncToCloud({ ...data, ...imported }, true);
+                    setTransferModal({ isOpen: false, mode: '', text: '' });
                     alert('代碼載入成功！全系統資料已完整還原並自動同步至雲端。');
-                } catch (err) {
-                    alert('載入失敗：此代碼無效或版本不相容。');
-                }
+                } catch (err) { alert('載入失敗：此代碼無效或版本不相容。'); }
             };
 
             const renderEmployee = () => (
@@ -1176,6 +1140,40 @@
                             {currentView === 'salary' && renderSalary()}
                             {currentView === 'employee' && renderEmployee()}
                         </main>
+
+                        {/* 跨裝置代碼轉移專用文字視窗 */}
+                        {transferModal.isOpen && (
+                            <div className="fixed inset-0 z-[200] bg-slate-900/80 flex items-center justify-center p-4">
+                                <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
+                                    <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                        <i data-lucide={transferModal.mode === 'copy' ? 'copy' : 'clipboard-paste'} className="text-[var(--primary)] w-6 h-6"></i>
+                                        {transferModal.mode === 'copy' ? '複製轉移代碼' : '貼上轉移代碼'}
+                                    </h3>
+                                    <p className="text-sm text-gray-500 mb-4 font-bold">
+                                        {transferModal.mode === 'copy' ? '請點擊下方按鈕複製，或手動長按全選下方文字。' : '請長按下方空白框並貼上從另一台裝置取得的代碼。'}
+                                    </p>
+                                    <textarea 
+                                        className="w-full flex-1 min-h-[200px] p-3 border-2 border-gray-200 rounded-xl font-mono text-xs focus:border-[var(--primary)] outline-none resize-none mb-6 break-all"
+                                        value={transferModal.text}
+                                        onChange={(e) => setTransferModal({...transferModal, text: e.target.value})}
+                                        readOnly={transferModal.mode === 'copy'}
+                                        placeholder={transferModal.mode === 'paste' ? '在此長按並貼上代碼...' : ''}
+                                    ></textarea>
+                                    <div className="flex gap-4">
+                                        {transferModal.mode === 'copy' ? (
+                                            <button onClick={() => { 
+                                                navigator.clipboard.writeText(transferModal.text)
+                                                    .then(() => alert('✅ 已成功複製到剪貼簿！'))
+                                                    .catch(() => alert('⚠️ 瀏覽器阻擋複製，請直接在文字框內長按全選並複製。')); 
+                                            }} className="flex-1 btn-primary-action py-3 rounded-xl font-bold">嘗試一鍵複製</button>
+                                        ) : (
+                                            <button onClick={processPastedCode} className="flex-1 btn-primary-action py-3 rounded-xl font-bold">確認載入</button>
+                                        )}
+                                        <button onClick={() => setTransferModal({isOpen: false, mode: '', text: ''})} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-bold transition-colors">取消</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             );
