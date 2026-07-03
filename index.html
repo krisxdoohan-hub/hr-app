@@ -1014,7 +1014,7 @@
                                     <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#1E293B]">▲</div>
                                     <div className="flex flex-col">
                                         <span>HR 出勤系統</span>
-                                        <span className="text-[10px] text-gray-400 font-normal">v0.0.0.0.42</span>
+                                        <span className="text-[10px] text-gray-400 font-normal">v0.0.0.0.43</span>
                                     </div>
                                 </div>
                             </div>
@@ -1034,12 +1034,13 @@
                                 <h1 className="text-lg md:text-xl font-semibold text-gray-800">{navItems.find(n => n.id === currentView)?.label}</h1>
                                 {isLoading && <div className="loader ml-2 md:ml-4"></div>}
                             </div>
-                            <div className="flex items-center gap-3 md:gap-6">
-                                <button onClick={() => setIsAmountMasked(!isAmountMasked)} className="text-gray-500 hover:text-[var(--primary)] transition-colors" title="隱私遮蔽">
+                            <div className="flex items-center gap-1 md:gap-4">
+                                <button onClick={() => setIsAmountMasked(!isAmountMasked)} className="p-2 text-gray-400 hover:text-[var(--primary)] transition-colors flex items-center justify-center rounded-full active:bg-gray-100" title="隱私遮蔽">
                                     <i data-lucide={isAmountMasked ? 'eye-off' : 'eye'} className="w-5 h-5"></i>
                                 </button>
-                                <button onClick={fetchFromCloud} className="btn-outline-action px-3 py-1.5 md:px-4 md:py-2 rounded-md text-xs flex items-center gap-2 font-bold">
-                                    <i data-lucide="refresh-cw" className="w-4 h-4"></i> <span className="hidden md:inline">雲端同步</span>
+                                <button onClick={fetchFromCloud} className="p-2 md:px-4 md:py-2 md:border border-[var(--primary)] text-[var(--primary)] rounded-lg text-xs flex items-center justify-center gap-2 font-bold transition-colors hover:bg-[var(--surface)] active:scale-95" title="雲端同步">
+                                    <i data-lucide="refresh-cw" className="w-5 h-5 md:w-4 md:h-4"></i> 
+                                    <span className="hidden md:inline">雲端同步</span>
                                 </button>
                             </div>
                         </header>
@@ -1054,17 +1055,16 @@
                             {currentView === 'employee' && renderEmployee()}
                         </main>
 
-                        {/* 新增：手機版專用底部工作列 (Bottom Navigation) 增加高度與安全間距 */}
-                        <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex justify-around items-center h-[72px] z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-2 pt-1">
+                        {/* 手機版專用底部工作列 (Bottom Navigation)：純圖示極簡設計，最佳化比例與點擊範圍 */}
+                        <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex items-center justify-between h-[68px] z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-2 px-2">
                             {navItems.map(item => (
                                 <button 
                                     key={item.id} 
                                     onClick={() => setCurrentView(item.id)} 
-                                    className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${currentView === item.id ? 'text-[var(--primary)]' : 'text-gray-400 hover:text-[var(--primary)]'}`}
+                                    className={`flex-1 flex items-center justify-center h-full transition-all active:scale-90 ${currentView === item.id ? 'text-[var(--primary)]' : 'text-gray-400 hover:text-[var(--primary)]'}`}
+                                    title={item.label}
                                 >
-                                    <i data-lucide={item.icon} className="w-5 h-5"></i>
-                                    {/* 縮短手機版文字以適應版面 */}
-                                    <span className="text-[10px] font-bold">{item.label.replace('總覽','').replace('管理','').replace('查詢','')}</span>
+                                    <i data-lucide={item.icon} className="w-6 h-6"></i>
                                 </button>
                             ))}
                         </nav>
