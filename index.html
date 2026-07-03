@@ -89,7 +89,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const APP_VERSION = 'v0.0.0.0.57';
+        const APP_VERSION = 'v0.0.0.0.6 - 移轉代碼';
         const { useState, useEffect, useMemo, useRef } = React;
         const STORAGE_KEY = 'HR_APP_DATA_V10_FUSION';
 
@@ -949,40 +949,54 @@
 
             const handleCopyCode = () => {
                 try {
+                    // 終極縮短：完全拋棄 records 與 holidays，只轉移核心設定與雲端金鑰 (gasUrl)
                     const shortData = {
                         p: data.passcode, g: data.gasUrl, m: data.monthlySalaries, d: data.dependentsCount, e: data.employmentStartDate,
-                        h: data.historicalLeave ? { a: data.historicalLeave.annual, s: data.historicalLeave.sick, p: data.historicalLeave.personal } : { a: 0, s: 0, p: 0 },
-                        r: data.records ? data.records.map(r => ({ i: r.id, t: r.date, y: r.type, n: r.time, u: r.hours, a: r.amount })) : [],
-                        o: data.holidays || {}
+                        h: data.historicalLeave ? { a: data.historicalLeave.annual, s: data.historicalLeave.sick, p: data.historicalLeave.personal } : { a: 0, s: 0, p: 0 }
                     };
                     const compressed = LZString.compressToBase64(JSON.stringify(shortData));
-                    // 改為開啟自訂視窗並填入代碼
                     setTransferModal({ isOpen: true, mode: 'copy', text: compressed });
                 } catch (err) { alert('代碼壓縮失敗：' + err.message); }
             };
 
             const handlePasteCode = () => {
-                // 改為開啟空白的自訂視窗準備接收貼上
                 setTransferModal({ isOpen: true, mode: 'paste', text: '' });
             };
             
-            const processPastedCode = () => {
+            const processPastedCode = async () => {
                 if (!transferModal.text) return alert('請先貼上代碼');
                 try {
                     const decompressedStr = LZString.decompressFromBase64(transferModal.text.trim());
                     if (!decompressedStr) return alert('解壓縮失敗：代碼格式不正確或內容已損毀！');
                     
                     const short = JSON.parse(decompressedStr);
-                    const imported = {
+                    const importedSettings = {
                         passcode: short.p || '123456', gasUrl: short.g || '', monthlySalaries: short.m || {}, dependentsCount: short.d || 0, employmentStartDate: short.e || '2023-08-07',
-                        historicalLeave: short.h ? { annual: short.h.a || 0, sick: short.h.s || 0, personal: short.h.p || 0 } : { annual: 0, sick: 0, personal: 0 },
-                        records: short.r ? short.r.map(r => ({ id: r.i, date: r.t, type: r.y, time: r.n, hours: r.u, amount: r.a })) : [],
-                        holidays: short.o || {}
+                        historicalLeave: short.h ? { annual: short.h.a || 0, sick: short.h.s || 0, personal: short.h.p || 0 } : { annual: 0, sick: 0, personal: 0 }
                     };
                     
-                    syncToCloud({ ...data, ...imported }, true);
+                    // 先套用設定，保留既有的 records 與 holidays 結構避免出錯
+                    const mergedData = { ...data, ...importedSettings };
+                    setData(mergedData);
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(mergedData));
                     setTransferModal({ isOpen: false, mode: '', text: '' });
-                    alert('代碼載入成功！全系統資料已完整還原並自動同步至雲端。');
+                    
+                    alert('核心參數載入成功！系統即將利用連線網址自動從雲端下載歷史出勤紀錄...');
+                    
+                    // 利用轉移過來的 gasUrl 自動去雲端把龐大的歷史資料抓下來補齊
+                    if (importedSettings.gasUrl) {
+                        setIsLoading(true);
+                        try {
+                            const res = await fetch(importedSettings.gasUrl);
+                            const cloudData = await res.json();
+                            if (Object.keys(cloudData).length > 0) {
+                                setData(cloudData);
+                                localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudData));
+                                alert('雲端歷史資料同步完成！');
+                            }
+                        } catch (err) { alert('設定已成功，但從雲端讀取紀錄失敗，請確認 GAS 網址是否正確或網路狀態。'); }
+                        setIsLoading(false);
+                    }
                 } catch (err) { alert('載入失敗：此代碼無效或版本不相容。'); }
             };
 
