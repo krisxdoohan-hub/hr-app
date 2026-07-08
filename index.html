@@ -89,7 +89,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const APP_VERSION = 'v0.0.0.0.61 - 結構查詢微調';
+        const APP_VERSION = 'v0.0.0.0.62 - 字體微調';
         const { useState, useEffect, useMemo, useRef } = React;
         const STORAGE_KEY = 'HR_APP_DATA_V10_FUSION';
 
@@ -446,24 +446,28 @@
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="card-data-container overflow-x-auto">
                             <div className="flex justify-between items-center mb-6 min-w-min">
-                                <h2 className="text-lg font-bold text-gray-800">近期請假申請</h2>
+                                <h2 className="text-lg font-bold text-gray-800">近期加班申請</h2>
                                 <button onClick={() => setCurrentView('records')} className="text-[var(--primary)] text-sm font-medium hover:underline whitespace-nowrap ml-4">查看全部</button>
                             </div>
                             <div className="space-y-4 text-sm min-w-[300px]">
-                                {allLeaves.length === 0 ? (
-                                    <div className="text-gray-400 py-4 text-center">目前尚無請假紀錄</div>
+                                {data.records.filter(r => r.type === 'overtime').length === 0 ? (
+                                    <div className="text-gray-400 py-4 text-center">目前尚無加班紀錄</div>
                                 ) : (
-                                    allLeaves.map(r => {
+                                    data.records.filter(r => r.type === 'overtime').sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 5).map(r => {
                                         const d = new Date(r.date);
                                         const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
                                         return (
                                             <div key={r.id} className="flex justify-between items-center pb-3 border-b border-gray-50">
                                                 <span className="text-gray-500 w-32">{r.date.replace(/-/g, '/')} ({weekDays[d.getDay()]})</span>
-                                                <span className="font-bold w-12 text-center">{r.type === 'sick' ? '病假' : r.type === 'personal' ? '事假' : '特休'}</span>
+                                                <span className="font-bold w-12 text-center">加班</span>
                                                 <span className="font-bold w-16 text-right">{r.hours.toFixed(1)} 小時</span>
                                                 <span className="ml-auto px-3 py-1 rounded-full border border-green-200 text-green-500 bg-green-50 text-xs">已登記</span>
                                             </div>
                                         );
+                                    })
+                                )}
+                            </div>
+                        </div>
                                     })
                                 )}
                             </div>
@@ -705,7 +709,7 @@
                                 ) : (
                                     <tr key={r.id} className="border-b border-gray-100 hover:bg-[#FDF2E9] transition-colors">
                                         <td className="py-4">{r.date}</td>
-                                        <td className={`py-4 font-bold ${r.type === 'annual' ? 'text-blue-500' : r.type === 'sick' ? 'text-green-500' : r.type === 'personal' ? 'text-orange-400' : ''}`}>
+                                        <td className={`py-4 font-bold ${r.type === 'annual' ? 'text-blue-500' : r.type === 'sick' ? 'text-green-500' : r.type === 'personal' ? 'text-orange-400' : r.type === 'overtime' ? 'text-purple-500' : ''}`}>
                                             {r.type.includes('bonus') ? '獎金' : (r.type === 'overtime' ? '加班' : (r.type === 'sick' ? '病假' : (r.type === 'personal' ? '事假' : (r.type === 'punch_in' ? '上班打卡' : (r.type === 'punch_out' ? '下班打卡' : '特休')))))}
                                         </td>
                                         <td className="py-4 font-bold">{r.time ? r.time : (r.hours > 0 ? `${r.hours} h` : '-')}</td>
