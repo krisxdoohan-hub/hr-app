@@ -89,7 +89,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const APP_VERSION = 'v0.0.0.0.62 - 字體微調';
+        const APP_VERSION = 'v0.0.0.0.63 -新增假別及字體配色微調 ';
         const { useState, useEffect, useMemo, useRef } = React;
         const STORAGE_KEY = 'HR_APP_DATA_V10_FUSION';
 
@@ -158,9 +158,13 @@
                     monthlySalaries: {},
                     dependentsCount: 0,
                     employmentStartDate: '2023-08-07',
-                    historicalLeave: { annual: 0, sick: 0, personal: 0 },
+                    historicalLeave: { annual: 0, sick: 0, personal: 0, family_care: 0 },
                     records: [],
-                    holidays: {}
+                    holidays: {},
+                    workStartTime: '09:00',
+                    workEndTime: '18:00',
+                    fullAttendanceBonus: 1000,
+                    disasterLeaveDeduct: true
                 };
             })
 
@@ -320,7 +324,7 @@
             }, [data.employmentStartDate]);
 
             const leaveUsed = useMemo(() => {
-                const u = { annual: 0, sick: data.historicalLeave?.sick || 0, personal: data.historicalLeave?.personal || 0 };
+                const u = { annual: 0, sick: data.historicalLeave?.sick || 0, personal: data.historicalLeave?.personal || 0, family_care: data.historicalLeave?.family_care || 0 };
                 const now = new Date();
                 const start = new Date(data.employmentStartDate || now);
                 let baseDate = new Date(now.getFullYear(), start.getMonth(), start.getDate());
@@ -338,20 +342,30 @@
                 return u;
             }, [data.records, data.historicalLeave, data.employmentStartDate]);
 
-            const leaveLimits = { annual: annualLeaveTotalHours, sick: 240, personal: 112 };
+            const leaveLimits = { annual: annualLeaveTotalHours, sick: 240, personal: 112, family_care: 56 };
             const formatDaysHours = (h) => h % 8 === 0 ? `${h / 8}天` : `${Math.floor(h / 8)}天${h % 8}h`;
 
-            const monthlyRecords = data.records.filter(r => r.date.startsWith(targetMonth)).sort((a,b) => new Date(b.date) - new Date(a.date));
+            // 動態處理天災假扣薪設定：若設定為不扣薪，則強制將所有天災假扣款歸零
+            const processRecordAmount = (r) => {
+                if (r.type === 'disaster' && data.disasterLeaveDeduct === false && r.amount < 0) {
+                    return { ...r, amount: 0 };
+                }
+                return r;
+            };
+            const monthlyRecords = data.records.filter(r => r.date.startsWith(targetMonth)).map(processRecordAmount).sort((a,b) => new Date(b.date) - new Date(a.date));
             const targetYear = targetMonth.split('-')[0];
-            const yearlyRecords = data.records.filter(r => r.date.startsWith(targetYear)).sort((a,b) => new Date(b.date) - new Date(a.date));
+            const yearlyRecords = data.records.filter(r => r.date.startsWith(targetYear)).map(processRecordAmount).sort((a,b) => new Date(b.date) - new Date(a.date));
             const actualWorkDays = new Set(monthlyRecords.filter(r => r.type === 'punch_in').map(r => r.date)).size;
 
             const otHours = monthlyRecords.filter(r => r.type === 'overtime').reduce((sum, r) => sum + r.hours, 0);
-            const leaveHours = monthlyRecords.filter(r => ['annual','sick','personal'].includes(r.type)).reduce((sum, r) => sum + r.hours, 0);
+            const leaveHours = monthlyRecords.filter(r => ['annual','sick','personal','unpaid','family_care','disaster'].includes(r.type)).reduce((sum, r) => sum + r.hours, 0);
             const totalMonthlyChanges = monthlyRecords.reduce((sum, r) => sum + r.amount, 0);
-            const estimatedFinalSalary = (currentSalary || 0) + totalMonthlyChanges - laborFee - healthFee;
+            
+            const hasLostFullAttendance = monthlyRecords.some(r => ['sick', 'personal', 'unpaid'].includes(r.type));
+            const fullAttendanceDeduction = hasLostFullAttendance ? (data.fullAttendanceBonus || 0) : 0;
+            const estimatedFinalSalary = (currentSalary || 0) + totalMonthlyChanges - laborFee - healthFee - fullAttendanceDeduction;
 
-            const allLeaves = data.records.filter(r => ['annual', 'sick', 'personal'].includes(r.type)).sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+            const allLeaves = data.records.filter(r => ['annual', 'sick', 'personal', 'unpaid', 'family_care', 'disaster'].includes(r.type)).sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
             let weekdaysInMonth = 0;
             const daysInMonth = new Date(targetYear, targetMonth.split('-')[1], 0).getDate();
             for(let i=1; i<=daysInMonth; i++) {
@@ -363,7 +377,7 @@
                 }
                 if (shouldWork) weekdaysInMonth++;
             }
-            const leaveDaysThisMonth = new Set(monthlyRecords.filter(r => ['annual', 'sick', 'personal'].includes(r.type)).map(r => r.date)).size;
+            const leaveDaysThisMonth = new Set(monthlyRecords.filter(r => ['annual', 'sick', 'personal', 'unpaid', 'family_care', 'disaster'].includes(r.type)).map(r => r.date)).size;
             const otDaysThisMonth = new Set(monthlyRecords.filter(r => r.type === 'overtime').map(r => r.date)).size;
             const missedDaysThisMonth = Math.max(0, weekdaysInMonth - actualWorkDays - leaveDaysThisMonth);
 
@@ -394,11 +408,11 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {yearlyRecords.filter(r => ['annual', 'sick', 'personal'].includes(r.type)).slice(0, 5).map(r => (
+                                    {yearlyRecords.filter(r => ['annual', 'sick', 'personal', 'unpaid', 'family_care', 'disaster'].includes(r.type)).slice(0, 5).map(r => (
                                         <tr key={r.id} className="border-b border-gray-50 hover:bg-[#FDF2E9] transition-colors">
                                             <td className="py-3">{r.date}</td>
                                             <td className="py-3 font-bold">
-                                                {r.type === 'overtime' ? '加班' : r.type === 'sick' ? '病假' : r.type === 'personal' ? '事假' : r.type === 'annual' ? '特休' : r.type === 'punch_in' ? '上班打卡' : r.type === 'punch_out' ? '下班打卡' : '獎金'}
+                                                {{overtime:'加班', sick:'病假', personal:'事假', unpaid:'無薪假', family_care:'家庭照顧假', disaster:'天災(颱風、地震)', annual:'特休', punch_in:'上班打卡', punch_out:'下班打卡'}[r.type] || '獎金'}
                                             </td>
                                             <td className="py-3">{r.time ? r.time : (r.hours > 0 ? `${r.hours} h` : '-')}</td>
                                             <td className={`py-3 font-bold ${r.amount > 0 ? 'text-emerald-500' : (r.amount < 0 ? 'text-red-500' : 'text-gray-400')}`}>{isAmountMasked ? '***' : r.amount}</td>
@@ -417,7 +431,8 @@
                                 {[ 
                                     { key: 'annual', name: '特休假', icon: 'star', color: 'bg-blue-500', iconBg: 'bg-blue-100 text-blue-500' },
                                     { key: 'sick', name: '病假', icon: 'thermometer', color: 'bg-green-500', iconBg: 'bg-green-100 text-green-500' },
-                                    { key: 'personal', name: '事假', icon: 'clipboard-list', color: 'bg-orange-400', iconBg: 'bg-orange-100 text-orange-400' }
+                                    { key: 'personal', name: '事假', icon: 'clipboard-list', color: 'bg-orange-400', iconBg: 'bg-orange-100 text-orange-400' },
+                                    { key: 'family_care', name: '家庭照顧假', icon: 'baby', color: 'bg-teal-500', iconBg: 'bg-teal-100 text-teal-500' }
                                 ].map(item => {
                                     const total = leaveLimits[item.key];
                                     const used = leaveUsed[item.key];
@@ -567,7 +582,8 @@
 
                     if (isWorkDay) {
                         let amt = 0;
-                        if (leaveForm.type === 'personal') amt = -Math.round(exactHourlyWage * leaveForm.hours);
+                        if (['personal', 'unpaid', 'family_care'].includes(leaveForm.type)) amt = -Math.round(exactHourlyWage * leaveForm.hours);
+                        if (leaveForm.type === 'disaster' && data.disasterLeaveDeduct !== false) amt = -Math.round(exactHourlyWage * leaveForm.hours);
                         if (leaveForm.type === 'sick') amt = -Math.round((exactHourlyWage / 2) * leaveForm.hours);
                         newRecords.push({ id: Date.now() + Math.random(), date: dateStr, type: leaveForm.type, hours: leaveForm.hours, amount: amt });
                         addedCount++;
@@ -589,11 +605,21 @@
                     <h2 className="text-xl font-bold text-gray-800 mb-6">出勤打卡與申報</h2>
                     
                     <div className="card-data-container border-l-4 border-blue-500 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-blue-50/30">
-                        <div>
+                        <div className="w-full">
                             <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><i data-lucide="clock" className="text-blue-500"></i> 每日出勤打卡</h3>
-                            <p className="text-xs text-gray-500 mt-1">若未手動打卡，系統將於規定時段自動推算並產生紀錄。</p>
+                            <p className="text-xs text-gray-500 mt-1 mb-3">若未手動打卡，系統將於規定時段自動推算並產生紀錄。</p>
+                            <div className="flex gap-4">
+                                <div className="flex flex-col">
+                                    <label className="text-xs font-bold text-gray-500 mb-1">設定上班時間</label>
+                                    <input type="time" value={data.workStartTime || '09:00'} onChange={e => syncToCloud({...data, workStartTime: e.target.value})} className="px-2 py-1 border rounded text-sm bg-white" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <label className="text-xs font-bold text-gray-500 mb-1">設定下班時間</label>
+                                    <input type="time" value={data.workEndTime || '18:00'} onChange={e => syncToCloud({...data, workEndTime: e.target.value})} className="px-2 py-1 border rounded text-sm bg-white" />
+                                </div>
+                            </div>
                         </div>
-                        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+                        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto mt-4 md:mt-0">
                             <button onClick={() => handleManualPunch('punch_in')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 md:py-2 px-6 rounded-lg transition-all shadow-sm w-full sm:w-auto text-lg md:text-base">上班打卡</button>
                             <button onClick={() => handleManualPunch('punch_out')} className="bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 md:py-2 px-6 rounded-lg transition-all shadow-sm w-full sm:w-auto text-lg md:text-base">下班打卡</button>
                         </div>
@@ -681,6 +707,9 @@
                                                 <option value="annual">特休</option>
                                                 <option value="sick">病假</option>
                                                 <option value="personal">事假</option>
+                                                <option value="unpaid">無薪假</option>
+                                                <option value="family_care">家庭照顧假</option>
+                                                <option value="disaster">天災(颱風、地震)</option>
                                                 <option value="bonus_festival">三節獎金</option>
                                                 <option value="bonus_incentive">激勵獎金</option>
                                                 <option value="bonus_yearend">年終獎金</option>
@@ -706,8 +735,8 @@
                                 ) : (
                                     <tr key={r.id} className="border-b border-gray-100 hover:bg-[#FDF2E9] transition-colors">
                                         <td className="py-4">{r.date}</td>
-                                        <td className={`py-4 font-bold ${r.type === 'annual' ? 'text-blue-500' : r.type === 'sick' ? 'text-green-500' : r.type === 'personal' ? 'text-orange-400' : r.type === 'overtime' ? 'text-purple-500' : ''}`}>
-                                            {r.type.includes('bonus') ? '獎金' : (r.type === 'overtime' ? '加班' : (r.type === 'sick' ? '病假' : (r.type === 'personal' ? '事假' : (r.type === 'punch_in' ? '上班打卡' : (r.type === 'punch_out' ? '下班打卡' : '特休')))))}
+                                        <td className={`py-4 font-bold ${r.type === 'annual' ? 'text-blue-500' : r.type === 'sick' ? 'text-green-500' : r.type === 'personal' ? 'text-orange-400' : r.type === 'overtime' ? 'text-purple-500' : r.type === 'unpaid' ? 'text-pink-500' : r.type === 'family_care' ? 'text-teal-500' : r.type === 'disaster' ? 'text-indigo-500' : ''}`}>
+                                            {r.type.includes('bonus') ? '獎金' : ({overtime:'加班', sick:'病假', personal:'事假', unpaid:'無薪假', family_care:'家庭照顧假', disaster:'天災(颱風、地震)', annual:'特休', punch_in:'上班打卡', punch_out:'下班打卡'}[r.type] || r.type)}
                                         </td>
                                         <td className="py-4 font-bold">{r.time ? r.time : (r.hours > 0 ? `${r.hours} h` : '-')}</td>
                                         <td className={`py-4 font-bold ${r.amount > 0 ? 'text-emerald-500' : (r.amount < 0 ? 'text-red-500' : 'text-gray-400')}`}>{isAmountMasked ? '***' : r.amount}</td>
@@ -756,6 +785,9 @@
                                     <option value="annual">特休</option>
                                     <option value="sick">病假</option>
                                     <option value="personal">事假</option>
+                                    <option value="unpaid">無薪假</option>
+                                    <option value="family_care">家庭照顧假</option>
+                                    <option value="disaster">天災(颱風、地震)</option>
                                 </select>
                             </div>
                             <div>
@@ -806,7 +838,7 @@
                         <div className="absolute -left-4 -bottom-4 opacity-10 text-8xl"><i data-lucide="wallet" className="w-48 h-48"></i></div>
                         <div className="text-sm opacity-80 mb-2 font-bold">{targetMonth.replace('-','年')}月 實發預估</div>
                         <div className="text-4xl md:text-5xl font-black relative z-10 tracking-tight">NT$ {isAmountMasked ? '***,***' : estimatedFinalSalary.toLocaleString()}</div>
-                        <div className="text-[10px] md:text-xs opacity-80 mt-4 bg-black/20 inline-block px-4 py-1.5 rounded-full relative z-10">底薪 + 加班與獎金 - 請假扣款 - 法定保險</div>
+                       <div className="text-[10px] md:text-xs opacity-80 mt-4 bg-black/20 inline-block px-4 py-1.5 rounded-full relative z-10">底薪 + 加班與獎金 - 請假扣款 - 全勤扣款 - 法定保險</div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="card-data-container">
@@ -838,12 +870,12 @@
                                 )}
 
                                 {/* 請假扣款分列區塊 */}
-                                {['sick', 'personal'].map(type => {
+                                {['sick', 'personal', 'unpaid', 'family_care', 'disaster'].map(type => {
                                     const records = monthlyRecords.filter(r => r.type === type && r.amount < 0);
                                     if (records.length === 0) return null;
                                     const totalHours = records.reduce((s, r) => s + r.hours, 0);
                                     const totalAmount = records.reduce((s, r) => s + r.amount, 0);
-                                    const label = type === 'sick' ? '病假扣款' : '事假扣款';
+                                    const label = type === 'sick' ? '病假扣款' : type === 'personal' ? '事假扣款' : type === 'unpaid' ? '無薪假扣款' : type === 'family_care' ? '家庭照顧假扣款' : '天災假扣款';
                                     return (
                                         <div key={type} className="flex justify-between items-center">
                                             <span className="text-gray-600">{label} <span className="text-xs text-gray-400 font-normal ml-1">({totalHours} 小時)</span></span>
@@ -853,8 +885,16 @@
                                 })}
 
                                 {/* 若無任何請假扣款的預設顯示 */}
-                                {!monthlyRecords.some(r => ['sick', 'personal'].includes(r.type) && r.amount < 0) && (
+                                {!monthlyRecords.some(r => ['sick', 'personal', 'unpaid', 'family_care', 'disaster'].includes(r.type) && r.amount < 0) && (
                                     <div className="flex justify-between"><span className="text-gray-600">請假扣款</span><span className="text-gray-400">0</span></div>
+                                )}
+                                
+                                {/* 全勤獎金扣除區塊 */}
+                                {hasLostFullAttendance && data.fullAttendanceBonus > 0 && (
+                                    <div className="flex justify-between items-center pt-2 mt-2 border-t border-gray-100">
+                                        <span className="text-gray-600">全勤獎金扣款 <span className="text-xs text-gray-400 font-normal ml-1">(事/病/無薪假)</span></span>
+                                        <span className="text-red-500">- NT$ {isAmountMasked ? '***' : data.fullAttendanceBonus.toLocaleString()}</span>
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -979,7 +1019,8 @@
                             employmentStartDate: imported.employmentStartDate || '2023-08-07',
                             historicalLeave: imported.historicalLeave || { annual: 0, sick: 0, personal: 0 },
                             records: imported.records || [],
-                            holidays: imported.holidays || data.holidays || {}
+                            holidays: imported.holidays || data.holidays || {},
+                            disasterLeaveDeduct: imported.disasterLeaveDeduct !== undefined ? imported.disasterLeaveDeduct : (data.disasterLeaveDeduct !== undefined ? data.disasterLeaveDeduct : true)
                         };
                         syncToCloud(mergedData, true);
                         alert('備份紀錄與設定已成功載入！');
@@ -1054,6 +1095,10 @@
                                 <input type="number" value={currentSalary} onChange={e => syncToCloud({...data, monthlySalaries: {...data.monthlySalaries, [targetMonth]: Number(e.target.value)}})} className="w-full px-3 py-2 border rounded-lg font-bold focus:border-[var(--primary)] outline-none" />
                             </div>
                             <div>
+                                <label className="block text-xs font-bold text-gray-500 mb-1">全勤獎金金額 (NT$)</label>
+                                <input type="number" value={data.fullAttendanceBonus || 0} onChange={e => syncToCloud({...data, fullAttendanceBonus: Number(e.target.value)})} className="w-full px-3 py-2 border rounded-lg font-bold focus:border-[var(--primary)] outline-none" />
+                            </div>
+                            <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">健保依附人數</label>
                                 <select value={data.dependentsCount} onChange={e => syncToCloud({...data, dependentsCount: Number(e.target.value)})} className="w-full px-3 py-2 border rounded-lg font-bold bg-white focus:border-[var(--primary)] outline-none">
                                     <option value="0">僅保本人</option>
@@ -1062,9 +1107,16 @@
                                     <option value="3">3 位(含)以上</option>
                                 </select>
                             </div>
-                            <div className="md:col-span-2">
+                            <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">到職日 (用於計算特休週年制)</label>
                                 <input type="date" value={data.employmentStartDate} onChange={e => syncToCloud({...data, employmentStartDate: e.target.value})} className="w-full px-3 py-2 border rounded-lg font-bold focus:border-[var(--primary)] outline-none" />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-bold text-gray-500 mb-1">天災假(停班停課)扣薪設定</label>
+                                <select value={data.disasterLeaveDeduct !== false ? "true" : "false"} onChange={e => syncToCloud({...data, disasterLeaveDeduct: e.target.value === "true"})} className="w-full px-3 py-2 border rounded-lg font-bold bg-white focus:border-[var(--primary)] outline-none">
+                                    <option value="true">扣除當日薪資 (預設)</option>
+                                    <option value="false">不扣薪 (視為給薪假)</option>
+                                </select>
                             </div>
                         </div>
                     </div>
