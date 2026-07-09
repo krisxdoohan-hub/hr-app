@@ -89,7 +89,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const APP_VERSION = 'v0.0.0.0.63 -新增假別及字體配色微調 ';
+        const APP_VERSION = 'v0.0.0.0.64 -新增請假時數(起訖點)+修正請假打卡 ';
         const { useState, useEffect, useMemo, useRef } = React;
         const STORAGE_KEY = 'HR_APP_DATA_V10_FUSION';
 
@@ -143,7 +143,7 @@
             
             const [transferModal, setTransferModal] = useState({ isOpen: false, mode: '', text: '' });
             
-            const [leaveForm, setLeaveForm] = useState({ date: new Date().toISOString().split('T')[0], endDate: new Date().toISOString().split('T')[0], type: 'annual', hours: 8 });
+            const [leaveForm, setLeaveForm] = useState({ date: new Date().toISOString().split('T')[0], endDate: new Date().toISOString().split('T')[0], type: 'annual', hours: 8, startTime: '09:00', endTime: '18:00' });
             const [showBrackets, setShowBrackets] = useState(false);
             const pressTimer = useRef(null);
 
@@ -210,6 +210,12 @@
                 let hasChanges = false;
                 let newRecords = [...data.records];
 
+                // 解析設定的標準上下班時間
+                const defaultStartH = parseInt((data.workStartTime || '09:00').split(':')[0], 10);
+                const defaultStartM = parseInt((data.workStartTime || '09:00').split(':')[1], 10);
+                const defaultEndH = parseInt((data.workEndTime || '18:00').split(':')[0], 10);
+                const defaultEndM = parseInt((data.workEndTime || '18:00').split(':')[1], 10);
+
                 for (let d = new Date(startDate); d <= now; d.setDate(d.getDate() + 1)) {
                     const y = d.getFullYear();
                     const m = d.getMonth();
@@ -221,15 +227,52 @@
                     if (data.holidays && data.holidays[dateStr] !== undefined) {
                         shouldWork = !data.holidays[dateStr]; 
                     }
+
+                    let targetStartH = defaultStartH, targetStartM = defaultStartM;
+                    let targetEndH = defaultEndH, targetEndM = defaultEndM;
+                    
+                    // 取得當天的所有請假紀錄
+                    const todayLeaves = newRecords.filter(r => r.date === dateStr && ['annual', 'sick', 'personal', 'unpaid', 'family_care', 'disaster'].includes(r.type));
+                    const todayLeaveHours = todayLeaves.reduce((sum, r) => sum + (r.hours || 0), 0);
+                        
+                    if (todayLeaveHours >= 8) {
+                        shouldWork = false; // 滿8小時不需出勤
+                    } else if (todayLeaves.length > 0) {
+                        // 動態調整應打卡時間：若請假時數小於8小時
+                        todayLeaves.forEach(leave => {
+                            if (leave.startTime && leave.endTime) {
+                                const [lStartH, lStartM] = leave.startTime.split(':').map(Number);
+                                const [lEndH, lEndM] = leave.endTime.split(':').map(Number);
+                                
+                                // 若請假是從上班時間開始 (上午請假) -> 上班打卡時間延後至請假結束時間
+                                if (lStartH === defaultStartH && lStartM === defaultStartM) {
+                                    targetStartH = lEndH;
+                                    targetStartM = lEndM;
+                                }
+                                // 若請假是直到下班時間結束 (下午請假) -> 下班打卡時間提前至請假開始時間
+                                else if (lEndH === defaultEndH && lEndM === defaultEndM) {
+                                    targetEndH = lStartH;
+                                    targetEndM = lStartM;
+                                }
+                            }
+                        });
+                    }
                     
                     if (shouldWork) { 
                         const hasPunchIn = newRecords.some(r => r.date === dateStr && r.type === 'punch_in');
                         const hasPunchOut = newRecords.some(r => r.date === dateStr && r.type === 'punch_out');
 
-                        const punchInLimit = new Date(y, m, day, 8, 59).getTime();
+                        // 依據推算後的目標時間 (targetStart) 決定上班打卡
+                        const punchInLimitDate = new Date(y, m, day, targetStartH, targetStartM);
+                        punchInLimitDate.setMinutes(punchInLimitDate.getMinutes() - 1);
+                        const punchInLimit = punchInLimitDate.getTime();
+
                         if (!hasPunchIn && now.getTime() > punchInLimit) {
-                            const min = 55 + Math.floor(Math.random() * 5); 
-                            newRecords.push({ id: Date.now() + Math.random(), date: dateStr, type: 'punch_in', time: `08:${min}`, hours: 0, amount: 0 });
+                            const randomMinOffset = 1 + Math.floor(Math.random() * 5);
+                            const finalInTime = new Date(punchInLimitDate.getTime());
+                            finalInTime.setMinutes(finalInTime.getMinutes() - randomMinOffset + 1);
+                            const timeStr = `${String(finalInTime.getHours()).padStart(2, '0')}:${String(finalInTime.getMinutes()).padStart(2, '0')}`;
+                            newRecords.push({ id: Date.now() + Math.random(), date: dateStr, type: 'punch_in', time: timeStr, hours: 0, amount: 0 });
                             hasChanges = true;
                         }
 
@@ -237,23 +280,30 @@
 
                         if (!hasPunchOut) {
                             if (otRecord) {
-                                const targetHour = 18 + Math.floor(otRecord.hours);
-                                const targetMin = (otRecord.hours % 1) * 60;
-                                const otPunchOutLimit = new Date(y, m, day, targetHour, targetMin + 3).getTime();
+                                // 加班一律從標準下班時間往後加
+                                const targetTime = new Date(y, m, day, defaultEndH, defaultEndM);
+                                targetTime.setMinutes(targetTime.getMinutes() + otRecord.hours * 60);
+                                const otPunchOutLimit = targetTime.getTime() + (3 * 60000); 
                                 
                                 if (now.getTime() > otPunchOutLimit) {
-                                    let finalMin = targetMin + 1 + Math.floor(Math.random() * 3);
-                                    let finalHour = targetHour;
-                                    if (finalMin >= 60) { finalHour += 1; finalMin -= 60; }
-                                    const timeStr = `${String(finalHour).padStart(2, '0')}:${String(finalMin).padStart(2, '0')}`;
+                                    const randomMinOffset = 1 + Math.floor(Math.random() * 3);
+                                    targetTime.setMinutes(targetTime.getMinutes() + randomMinOffset);
+                                    const timeStr = `${String(targetTime.getHours()).padStart(2, '0')}:${String(targetTime.getMinutes()).padStart(2, '0')}`;
                                     newRecords.push({ id: Date.now() + Math.random(), date: dateStr, type: 'punch_out', time: timeStr, hours: 0, amount: 0 });
                                     hasChanges = true;
                                 }
                             } else {
-                                const defaultCutoffTime = new Date(y, m, day, 18, 5).getTime();
+                                // 依據推算後的目標時間 (targetEnd) 決定下班打卡
+                                const defaultCutoffDate = new Date(y, m, day, targetEndH, targetEndM);
+                                defaultCutoffDate.setMinutes(defaultCutoffDate.getMinutes() + 5);
+                                const defaultCutoffTime = defaultCutoffDate.getTime();
+                                
                                 if (now.getTime() > defaultCutoffTime) {
-                                    const min = 1 + Math.floor(Math.random() * 3); 
-                                    newRecords.push({ id: Date.now() + Math.random(), date: dateStr, type: 'punch_out', time: `18:0${min}`, hours: 0, amount: 0 });
+                                    const randomMinOffset = 1 + Math.floor(Math.random() * 3);
+                                    const finalOutTime = new Date(y, m, day, targetEndH, targetEndM);
+                                    finalOutTime.setMinutes(finalOutTime.getMinutes() + randomMinOffset);
+                                    const timeStr = `${String(finalOutTime.getHours()).padStart(2, '0')}:${String(finalOutTime.getMinutes()).padStart(2, '0')}`;
+                                    newRecords.push({ id: Date.now() + Math.random(), date: dateStr, type: 'punch_out', time: timeStr, hours: 0, amount: 0 });
                                     hasChanges = true;
                                 }
                             }
@@ -265,7 +315,6 @@
                     syncToCloud({ ...data, records: newRecords }, false);
                 }
             }, [isLocked, data]);
-
             const handleManualPunch = (type) => {
                 const now = new Date();
                 const date = now.toISOString().split('T')[0];
@@ -536,10 +585,14 @@
                 
                 if (attForm.type === 'overtime') {
                     const punchOutIndex = newRecords.findIndex(r => r.date === attForm.date && r.type === 'punch_out');
-                    const targetHour = 18 + Math.floor(attForm.hours);
-                    const targetMin = (attForm.hours % 1) * 60;
-                    let finalMin = targetMin + 1 + Math.floor(Math.random() * 3);
-                    let finalHour = targetHour;
+                    
+                    // 解析設定的下班時間並推算
+                    const [endH, endM] = (data.workEndTime || '18:00').split(':').map(Number);
+                    const targetDate = new Date(2000, 0, 1, endH, endM);
+                    targetDate.setMinutes(targetDate.getMinutes() + attForm.hours * 60);
+                    
+                    let finalMin = targetDate.getMinutes() + 1 + Math.floor(Math.random() * 3);
+                    let finalHour = targetDate.getHours();
                     if (finalMin >= 60) { finalHour += 1; finalMin -= 60; }
                     const timeStr = `${String(finalHour).padStart(2, '0')}:${String(finalMin).padStart(2, '0')}`;
                     
@@ -585,7 +638,7 @@
                         if (['personal', 'unpaid', 'family_care'].includes(leaveForm.type)) amt = -Math.round(exactHourlyWage * leaveForm.hours);
                         if (leaveForm.type === 'disaster' && data.disasterLeaveDeduct !== false) amt = -Math.round(exactHourlyWage * leaveForm.hours);
                         if (leaveForm.type === 'sick') amt = -Math.round((exactHourlyWage / 2) * leaveForm.hours);
-                        newRecords.push({ id: Date.now() + Math.random(), date: dateStr, type: leaveForm.type, hours: leaveForm.hours, amount: amt });
+                        newRecords.push({ id: Date.now() + Math.random(), date: dateStr, type: leaveForm.type, hours: leaveForm.hours, amount: amt, startTime: leaveForm.startTime, endTime: leaveForm.endTime });
                         addedCount++;
                     }
                     current.setDate(current.getDate() + 1);
@@ -748,8 +801,12 @@
                                                     if (r.type === 'overtime') {
                                                         const punchOutIndex = newRecords.findIndex(x => x.date === r.date && x.type === 'punch_out');
                                                         if (punchOutIndex !== -1) {
-                                                            const min = 0 + Math.floor(Math.random() * 4);
-                                                            newRecords[punchOutIndex] = { ...newRecords[punchOutIndex], time: `18:0${min}` };
+                                                            const [endH, endM] = (data.workEndTime || '18:00').split(':').map(Number);
+                                                            const resetDate = new Date(2000, 0, 1, endH, endM);
+                                                            const minOffset = 1 + Math.floor(Math.random() * 3);
+                                                            resetDate.setMinutes(resetDate.getMinutes() + minOffset);
+                                                            const timeStr = `${String(resetDate.getHours()).padStart(2, '0')}:${String(resetDate.getMinutes()).padStart(2, '0')}`;
+                                                            newRecords[punchOutIndex] = { ...newRecords[punchOutIndex], time: timeStr };
                                                         }
                                                     }
                                                     syncToCloud({ ...data, records: newRecords });
@@ -770,7 +827,7 @@
                     
                     <div className="card-data-container border-l-4 border-[#E67E22] mb-6">
                         <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="plane" className="text-[#E67E22]"></i> 請假申報</h3>
-                        <form onSubmit={handleAddLeave} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                        <form onSubmit={handleAddLeave} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">開始日期</label>
                                 <input type="date" required value={leaveForm.date} onChange={e => setLeaveForm({...leaveForm, date: e.target.value, endDate: e.target.value > leaveForm.endDate ? e.target.value : leaveForm.endDate})} className="w-full px-3 py-2 border rounded-lg font-bold text-sm" />
@@ -791,9 +848,17 @@
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 mb-1">每日時數</label>
+                                <label className="block text-xs font-bold text-gray-500 mb-1">每日請假起訖時間</label>
+                                <div className="flex gap-2 items-center">
+                                    <input type="time" required value={leaveForm.startTime} onChange={e => setLeaveForm({...leaveForm, startTime: e.target.value})} className="w-full px-2 py-2 border rounded-lg font-bold text-sm bg-white" />
+                                    <span className="text-gray-400 font-bold">-</span>
+                                    <input type="time" required value={leaveForm.endTime} onChange={e => setLeaveForm({...leaveForm, endTime: e.target.value})} className="w-full px-2 py-2 border rounded-lg font-bold text-sm bg-white" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 mb-1">每日請假時數</label>
                                 <select value={leaveForm.hours} onChange={e => setLeaveForm({...leaveForm, hours: Number(e.target.value)})} className="w-full px-3 py-2 border rounded-lg font-bold text-sm bg-white">
-                                    {Array.from({length: 8}, (_, i) => 1 + i).map(h => (
+                                    {Array.from({length: 16}, (_, i) => 0.5 + i * 0.5).map(h => (
                                         <option key={h} value={h}>{h} 小時</option>
                                     ))}
                                 </select>
