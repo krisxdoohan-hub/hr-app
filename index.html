@@ -89,7 +89,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const APP_VERSION = 'v0.0.0.0.64 -新增請假時數(起訖點)+修正請假打卡 ';
+        const APP_VERSION = 'v0.0.0.0.65 ';
         const { useState, useEffect, useMemo, useRef } = React;
         const STORAGE_KEY = 'HR_APP_DATA_V10_FUSION';
 
@@ -197,12 +197,33 @@
                         alert('成功從雲端同步資料！');
                     }
                 } catch (err) { alert('讀取失敗，請確認 GAS 網址與網路連線。'); }
-                setIsLoading(false);
-            };
+            setIsLoading(false);
+        };
 
-            // 自動補卡邏輯回溯至 4月
-            useEffect(() => {
-                if (isLocked) return;
+        // 首次開啟網頁時自動從雲端同步資料 (不跳出 alert 打擾使用者)
+        useEffect(() => {
+            const autoFetch = async () => {
+                if (data.gasUrl) {
+                    setIsLoading(true);
+                    try {
+                        const res = await fetch(data.gasUrl);
+                        const cloudData = await res.json();
+                        if (Object.keys(cloudData).length > 0) {
+                            setData(cloudData);
+                            console.log('首次載入：自動同步雲端資料成功');
+                        }
+                    } catch (err) { 
+                        console.error('自動同步雲端資料失敗，請確認連線。', err); 
+                    }
+                    setIsLoading(false);
+                }
+            };
+            autoFetch();
+        }, []);
+
+        // 自動補卡邏輯回溯至 4月
+        useEffect(() => {
+            if (isLocked) return;
                 
                 const now = new Date();
                 const year = now.getFullYear();
